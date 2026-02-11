@@ -1,0 +1,134 @@
+================================================================================
+                    PHYSICAL MEMORY MAP - MyOS
+================================================================================
+
+KERNEL SIZE: 2894 bytes (2.8 KB, rounded to 3 KB = 0x0C00)
+
+================================================================================
+USABLE MEMORY REGIONS (from E820, Type 1)
+================================================================================
+
+Entry 1: Base=0x00000000, Length=0x0009FC00 (654 KB)
+         Range: 0x00000000 to 0x0009FC00
+         Note: Most of this is reserved (see below)
+
+Entry 4: Base=0x00100000, Length=0x07EE0000 (127 MB)
+         Range: 0x00100000 to 0x07FE0000
+         Note: This is our MAIN usable region!
+
+================================================================================
+RESERVED REGIONS (must mark as "used" in bitmap)
+================================================================================
+
+1. BIOS/IVT/EBDA:  0x00000000 to 0x0009FFFF (640 KB)
+   Reason: Contains interrupt vectors, BIOS data, EBDA
+   Pages: 160 pages (640 KB / 4 KB)
+
+2. VGA/BIOS ROM:   0x000A0000 to 0x000FFFFF (384 KB)
+   Reason: VGA memory and BIOS ROM area
+   Pages: 96 pages (384 KB / 4 KB)
+
+3. Kernel Image:   0x00003000 to 0x00003C00 (3 KB, round to 4 KB = 1 page)
+   Reason: Your kernel binary loaded here
+   Pages: 1 page (4 KB)
+
+4. Page Tables:    ~0x00003C00 to ~0x00005C00 (8 KB)
+   Reason: page_directory (4 KB) + page_table0 (4 KB) from paging.asm
+   Pages: 2 pages (8 KB)
+   Note: These are in kernel's .bss section, so they're right after kernel
+
+5. Stack:         0x00090000 (reserve 4 KB = 1 page)
+   Reason: Kernel stack (from kernel.asm line 32)
+   Pages: 1 page (4 KB)
+   Range: 0x00090000 to 0x00091000
+
+6. VGA Text Buffer: 0x000B8000 (4 KB = 1 page)
+   Reason: Video memory for text mode
+   Pages: 1 page (4 KB)
+   Range: 0x000B8000 to 0x000B9000
+
+================================================================================
+CALCULATIONS
+================================================================================
+
+Total Reserved Pages (below 1 MB):
+  - BIOS/IVT/EBDA: 160 pages
+  - VGA/BIOS ROM:   96 pages
+  - Kernel:          1 page
+  - Page Tables:     2 pages
+  - Stack:           1 page
+  - VGA Buffer:      1 page
+  TOTAL:            261 pages = 1044 KB (just over 1 MB)
+
+Usable Pages from Entry 1:
+  - Entry 1 total: 167 pages (654 KB / 4 KB)
+  - But 0x00000000 to 0x0009FC00 overlaps with reserved areas
+  - Actually usable from Entry 1: ~0 pages (all reserved)
+
+Usable Pages from Entry 4:
+  - Entry 4: 0x00100000 to 0x07FE0000 = 127 MB
+  - 127 MB = 32,512 pages (127 * 1024 * 1024 / 4096)
+  - This is our MAIN free memory pool!
+
+TOTAL FREE PAGES: 32,512 pages (from Entry 4 only)
+
+================================================================================
+BITMAP PLANNING
+================================================================================
+
+Total Pages to Track: 32,512 pages (from Entry 4)
+
+Bitmap Size Calculation:
+  - 1 bit per page
+  - 32,512 pages / 8 bits per byte = 4,064 bytes
+  - Round up to page boundary: 4,096 bytes = 1 page (4 KB)
+
+Bitmap Location Options:
+  Option 1: 0x00100000 (1 MB, first page of free memory - uses one free page)
+  Option 2: 0x00101000 (1 MB + 4 KB, keeps first page free - RECOMMENDED)
+  Option 3: Right after page tables (~0x00005C00) - NOT SAFE (in reserved area)
+
+RECOMMENDED: 0x00101000 (1 MB + 4 KB)
+  - Safe location (above all reserved areas, in Entry 4)
+  - Keeps first page (0x00100000) free for allocation
+  - Easy to remember
+  - Won't conflict with anything
+  - Reserve this 4 KB page in the bitmap!
+
+Bitmap Memory Range: 0x00101000 to 0x00102000 (4 KB)
+
+================================================================================
+BITMAP INDEXING
+================================================================================
+
+Important: The bitmap tracks pages starting from Entry 4 (0x00100000)
+
+Page Address to Bitmap Index:
+  - Physical address: 0x00100000 = page index 0
+  - Physical address: 0x00101000 = page index 1
+  - Physical address: 0x00102000 = page index 2
+  - etc.
+
+Formula: bitmap_index = (physical_addr - 0x00100000) / 4096
+
+Bit Position in Byte:
+  - Byte index = bitmap_index / 8
+  - Bit position = bitmap_index % 8
+
+================================================================================
+SUMMARY
+================================================================================
+
+✅ Usable Memory: 32,512 pages (127 MB) starting at 0x00100000
+✅ Bitmap Size: 4 KB (1 page)
+✅ Bitmap Location: 0x00101000 (1 MB + 4 KB, verified safe)
+✅ Total Reserved: 261 pages (below 1 MB) + 1 page for bitmap = 262 pages
+✅ Free Pages Available: 32,511 pages (32,512 - 1 for bitmap)
+
+Next Steps:
+1. Implement pmm_init() - mark all Entry 4 pages as free, reserve bitmap page
+2. Implement pmm_alloc_page() - find first free bit, mark used, return address
+3. Implement pmm_free_page() - clear bit, mark as free
+
+================================================================================
+

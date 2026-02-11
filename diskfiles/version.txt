@@ -1,0 +1,4 @@
+MyOS v0.2.0
+Built with: NASM + i686-elf-gcc
+Architecture: i386 (32-bit protected mode)
+Features: VFS, RAMFS, SimpleFS, ATA PIO, multilingual CLI

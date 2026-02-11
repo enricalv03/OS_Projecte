@@ -1,0 +1,3 @@
+Hello from the disk filesystem!
+This file was loaded from the SimpleFS partition on the disk image.
+MyOS can now read files from persistent storage.
