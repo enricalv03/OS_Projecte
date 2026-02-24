@@ -1,4 +1,5 @@
 #include "syscall.h"
+#include "../fs/vfs.h"
 #include "../process/process.h"
 #include "../process/scheduler.h"
 #include "../lib/kstring.h"
@@ -37,6 +38,11 @@ void syscall_init(void) {
     syscall_register(SYS_SLEEP,   sys_sleep);
     syscall_register(SYS_WRITE,   sys_write);
     syscall_register(SYS_READ,    sys_read);
+    syscall_register(SYS_GETUID, sys_getuid);
+    syscall_register(SYS_GETEUID, sys_geteuid);
+    syscall_register(SYS_OPEN, sys_open);
+    syscall_register(SYS_CLOSE, sys_close);
+    syscall_register(SYS_SEEK, sys_seek);
 }
 
 void syscall_register(unsigned int num, syscall_handler_t handler) {
@@ -312,23 +318,150 @@ int sys_write(unsigned int fd, unsigned int buf_ptr,
 
 /* sys_read -- Read data from a file descriptor.
  * fd=0 (stdin): read from keyboard buffer (non-blocking).
- * Returns: number of bytes read, or 0 if nothing available. */
+ * fd>=2: read from open file at current offset.
+ * Returns: number of bytes read, or -1 on error. */
 int sys_read(unsigned int fd, unsigned int buf_ptr,
              unsigned int count, unsigned int arg4) {
     (void)arg4;
 
-    if (fd != 0) return -1;  /* only stdin supported */
     if (buf_ptr == 0 || count == 0) return 0;
 
     char* buf = (char*)buf_ptr;
-    unsigned int read_count = 0;
 
+    /* fd >= 2: read from open file */
+    if (fd >= 2) {
+        pcb_t* pcb = process_get_current();
+        if (!pcb || fd >= MAX_OPEN_FILES || pcb->open_files[fd] == 0) {
+            return -1;
+        }
+        vfs_node_t* node = (vfs_node_t*)pcb->open_files[fd];
+        unsigned int off = pcb->open_file_offsets[fd];
+        int n = vfs_read(node, off, count, buf);
+        if (n > 0) {
+            pcb->open_file_offsets[fd] = off + (unsigned int)n;
+        }
+        return (n >= 0) ? n : -1;
+    }
+
+    if (fd != 0) return -1;  /* only stdin and open files supported */
+
+    /* fd == 0: stdin (keyboard buffer) */
+    unsigned int read_count = 0;
     for (unsigned int i = 0; i < count; i++) {
         int ch = kbd_buffer_get();
-        if (ch == -1) break;  /* no more data */
+        if (ch == -1) break;
         buf[i] = (char)ch;
         read_count++;
     }
-
     return (int)read_count;
+}
+
+int sys_getuid(unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4) {
+    (void)arg1;
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+
+    pcb_t* current = process_get_current();
+    return current ? (int)current->uid : 0;
+}
+
+int sys_geteuid(unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4) {
+    (void)arg1;
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+
+    pcb_t* current = process_get_current();
+    return current ? (int)current->uid : 0;
+}
+
+static pcb_t* syscall_current_pcb(void) {
+    pcb_t* pcb = process_get_current();
+    if (!pcb || pcb->pid == 0)
+    {
+        return 0;
+    }
+    return pcb;
+}
+
+int sys_open(unsigned int path_ptr, unsigned int arg2, unsigned int arg3, unsigned int arg4) {
+    (void)arg2; (void)arg3; (void)arg4;
+    pcb_t* pcb = syscall_current_pcb();
+    if (!pcb)
+    {
+        return -1;
+    }
+    if (path_ptr == 0)
+    {
+        return -1;
+    }
+    const char* path = (const char*)path_ptr;
+    vfs_node_t* node = vfs_lookup(path);
+    if (!node)
+    {
+        return -1;
+    }
+    if (node->type != VFS_NODE_FILE)
+    {
+        return -1;
+    }
+    for (unsigned int fd = 2; fd < MAX_OPEN_FILES; fd++)
+    {
+        if (pcb->open_files[fd] == 0)
+        {
+            pcb->open_files[fd] = (void*)node;
+            pcb->open_file_offsets[fd] = 0;
+            return (int)fd;
+        }
+        
+    }
+    
+    return -1;
+}
+
+int sys_close(unsigned int fd, unsigned int arg2, unsigned int arg3, unsigned int arg4) {
+    (void)arg2; (void)arg3; (void)arg4;
+    pcb_t* pcb = syscall_current_pcb();
+    if (!pcb)
+    {
+        return -1;
+    }
+    if (fd >= MAX_OPEN_FILES)
+    {
+        return -1;
+    }
+    if (fd < 2)
+    {
+        return -1;
+    }
+    
+    pcb->open_files[fd] = 0;
+    pcb->open_file_offsets[fd] = 0;
+
+    return 0;
+}
+
+/* sys_seek -- Set file offset. arg2 = offset, arg3 = whence (SEEK_SET/SEEK_CUR/SEEK_END). */
+int sys_seek(unsigned int fd, unsigned int offset, unsigned int whence, unsigned int arg4) {
+    (void)arg4;
+    pcb_t* pcb = syscall_current_pcb();
+    if (!pcb) return -1;
+    if (fd >= MAX_OPEN_FILES) return -1;
+    if (fd < 2) return -1;
+    vfs_node_t* node = (vfs_node_t*)pcb->open_files[fd];
+    if (!node) return -1;
+
+    unsigned int new_offset;
+    if (whence == SEEK_SET) {
+        new_offset = offset;
+    } else if (whence == SEEK_CUR) {
+        new_offset = pcb->open_file_offsets[fd] + offset;
+    } else if (whence == SEEK_END) {
+        new_offset = node->size + offset;
+    } else {
+        return -1;
+    }
+    pcb->open_file_offsets[fd] = new_offset;
+    return (int)new_offset;
 }

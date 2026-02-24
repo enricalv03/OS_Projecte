@@ -15,7 +15,11 @@
 #define PRIORITY_LOW          3
 #define PRIORITY_IDLE         1
 
+#define UID_ROOT              0
+#define UID_USER              1
+
 #define MAX_PROCESSES       256
+#define MAX_OPEN_FILES       16
 
 typedef struct process_control_block {
   unsigned int pid;
@@ -45,10 +49,15 @@ typedef struct process_control_block {
 
   char name[32];
   unsigned int exit_code;
+  unsigned int uid;
 
   /* Sleep / wait support */
   unsigned int sleep_until;       /* PIT tick to wake up at (0 = not sleeping) */
   unsigned int waiting_for_pid;   /* PID we're waiting on (0 = not waiting) */
+
+  /* Open file table: fd 0=stdin, 1=stdout, 2.. = vfs_node_t* (stored as void*). */
+  void* open_files[MAX_OPEN_FILES];
+  unsigned int open_file_offsets[MAX_OPEN_FILES];
 
   struct process_control_block* next;
   struct process_control_block* prev;
@@ -61,6 +70,8 @@ void process_kill(unsigned int pid);
 pcb_t* process_get_current(void);
 pcb_t* process_get_by_pid(unsigned int pid);
 unsigned int process_get_pid(void);
+unsigned int process_get_uid(void);
+void process_set_uid(unsigned int uid);
 
 void context_switch(pcb_t* from, pcb_t* to);
 void context_save(pcb_t* pcb);

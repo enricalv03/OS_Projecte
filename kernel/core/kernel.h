@@ -20,7 +20,7 @@
 /* Console configuration */
 #define CONSOLE_START_ROW     14
 #define CONSOLE_COLS          80
-#define CONSOLE_ROWS          25
+#define CONSOLE_ROWS          50
 
 /* ---- Subsystem initialization (called from kernel.asm) ---- */
 

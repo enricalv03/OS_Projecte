@@ -10,6 +10,18 @@ static pcb_t* process_list = 0;
 static pcb_t* current_process = 0;
 static unsigned int next_pid = 1;
 
+unsigned int process_get_uid(void) {
+  pcb_t* cur = process_get_current();
+  return cur ? cur->uid : UID_ROOT;
+}
+
+void process_set_uid(unsigned int uid) {
+  pcb_t* cur = process_get_current();
+  if (!cur) return;
+  if (cur->uid != UID_ROOT) return;  /* only root can switch */
+  cur->uid = uid;
+}
+
 void process_init(void) {
   // Clear process table
   memset(process_table, 0, sizeof(process_table));
@@ -26,7 +38,9 @@ void process_init(void) {
   kernel->base_priority = PRIORITY_REALTIME;
   kernel->page_directory = 0;
   strcpy(kernel->name, "kernel");
-  
+
+  kernel->uid = UID_ROOT;
+
   current_process = kernel;
   process_list = kernel;
 }
@@ -63,6 +77,7 @@ pcb_t* process_create(const char* name, unsigned int priority, void (*entry_poin
   
   strncpy(pcb->name, name, 31);
   pcb->name[31] = 0;
+  pcb->uid = current_process ? current_process->uid : UID_ROOT; 
 
   // Allocate page directory for process
   unsigned int page_dir_phys = pmm_alloc_page();

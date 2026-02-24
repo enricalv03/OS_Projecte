@@ -29,7 +29,7 @@ print_char_pm:
   
 clear_screen:
   mov edi, VIDEO_MEMORY
-  mov ecx, 2000
+  mov ecx, SCREEN_WIDTH * SCREEN_HEIGHT
 .loop:
   mov byte [edi], ' '          ; Space character
   mov byte [edi+1], 0x07       ; Light gray on black (standard VGA text attribute)
@@ -69,7 +69,7 @@ scroll_up_one_row:
   ; Copy row 1 to row 0, row 2 to row 1, etc.
   mov esi, VIDEO_MEMORY + 160    ; Start from row 1
   mov edi, VIDEO_MEMORY          ; Copy to row 0
-  mov ecx, (SCREEN_HEIGHT - 1) * SCREEN_WIDTH  ; 24 rows * 80 chars
+  mov ecx, (SCREEN_HEIGHT - 1) * SCREEN_WIDTH / 2  ; dwords (4 bytes each, 2 chars)
 
 .copy_loop:
   mov eax, [esi]

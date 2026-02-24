@@ -46,6 +46,8 @@ typedef struct vfs_node {
 
 int vfs_mount_root(vfs_node_t* root);
 vfs_node_t* vfs_get_root(void);
+vfs_node_t* vfs_get_cwd(void);
+void vfs_set_cwd(vfs_node_t* node);
 vfs_node_t* vfs_lookup(const char* path);
 
 int vfs_read(vfs_node_t* node,
@@ -56,6 +58,12 @@ int vfs_read(vfs_node_t* node,
 int vfs_readdir(vfs_node_t* dir,
                 unsigned int index,
                 vfs_dir_entry_t* out);
+
+/* Return directory entry type: 1 = file, 2 = directory. Use from ASM to avoid struct layout. */
+int vfs_dir_entry_get_type(const vfs_dir_entry_t* entry);
+void vfs_set_cwd_with_path(vfs_node_t* node, const char* path);
+const char* vfs_get_cwd_path(void);
+void vfs_chdir_parent(void);
 
 #endif
 

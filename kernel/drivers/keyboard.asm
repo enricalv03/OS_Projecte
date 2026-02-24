@@ -46,11 +46,13 @@ keyboard_handler:
   cmp al, 0x80
   jae .end_handler
 
-  ; --- Tecles especials Enter i Backspace ---
+  ; --- Tecles especials Enter, Backspace, Tab ---
   cmp al, 0x1C                 ; Enter
   je .handle_enter
   cmp al, 0x0E                 ; Backspace
   je .handle_backspace
+  cmp al, 0x0F                 ; Tab
+  je .handle_tab
 
   ; --- Construir byte de modificadors a BL ---
   mov bl, 0
@@ -93,6 +95,13 @@ keyboard_handler:
 
 .handle_backspace:
   mov eax, 8
+  push eax
+  call kbd_buffer_put
+  add esp, 4
+  jmp .end_handler
+
+.handle_tab:
+  mov eax, 9
   push eax
   call kbd_buffer_put
   add esp, 4

@@ -33,6 +33,10 @@ extern cmd_pos
 extern kernel_c_init
 extern syscall_handler
 extern newline_from_cursor
+extern process_get_uid
+extern vfs_get_cwd_path
+extern tab_complete
+extern tab_reset
 
 ; BSS boundary symbols from linker.ld
 extern __bss_start
@@ -439,6 +443,12 @@ console_loop:
   cmp al, 0x81
   je .handle_history_down
 
+  cmp al, 9
+  je .handle_tab
+
+  ; Any non-Tab key resets the tab cycling state
+  call tab_reset
+
   mov ebx, [cmd_pos]
   cmp ebx, 63
   jge console_loop
@@ -455,6 +465,57 @@ console_loop:
   mov eax, [cons_cursor]
   call update_hw_cursor_from_ptr
 
+  jmp console_loop
+
+; ---------------------------------------------------------------------------
+; Tab completion
+; ---------------------------------------------------------------------------
+.handle_tab:
+  ; NUL-terminate current buffer content
+  mov ebx, [cmd_pos]
+  mov byte [command_buffer + ebx], 0
+
+  ; tab_complete(command_buffer, cmd_pos) → returns new cmd_pos in EAX
+  push dword [cmd_pos]
+  push command_buffer
+  call tab_complete
+  add esp, 8
+
+  ; If cmd_pos unchanged, nothing to redraw
+  cmp eax, [cmd_pos]
+  je console_loop
+
+  ; Save new cmd_pos from tab_complete
+  mov [cmd_pos], eax
+
+  ; Erase visible text on screen (without touching command_buffer)
+  mov eax, [cons_cursor]
+  sub eax, [line_start]
+  shr eax, 1
+  mov ecx, eax
+  test ecx, ecx
+  jz .tab_redraw
+  mov edi, [line_start]
+  mov [cons_cursor], edi
+.tab_erase:
+  mov byte [edi], ' '
+  mov byte [edi + 1], 0x07
+  add edi, 2
+  dec ecx
+  jnz .tab_erase
+  mov edi, [line_start]
+  mov [cons_cursor], edi
+
+.tab_redraw:
+  ; Print the completed buffer on screen
+  mov esi, command_buffer
+  mov edi, [cons_cursor]
+  mov bl, 0x0F
+  call print_string_pm
+  mov [cons_cursor], edi
+
+  mov eax, [cons_cursor]
+  call update_hw_cursor_from_ptr
   jmp console_loop
 
 .newline:
@@ -474,10 +535,8 @@ console_loop:
   call history_save
 .skip_history_save:
 
-  ; Move to next line -- uses scroll-aware helper so output
-  ; is never written past the VGA text buffer (row 25+).
-  ; Previously this was inline arithmetic that did NOT scroll,
-  ; causing all command output to vanish once the screen was full.
+  ; Move to next line -- uses scroll-aware helper that scrolls
+  ; the screen up when reaching the bottom (row 25).
   call newline_from_cursor
 
   ; Only parse if non-empty
@@ -566,7 +625,7 @@ console_loop:
   jmp console_loop
 
 ; ---------------------------------------------------------------------------
-; print_prompt: Prints "MyOS> " in green at current cons_cursor
+; print_prompt: Prints "admin@MyOS:/path> " or "user@MyOS:/path> " in green
 ; ---------------------------------------------------------------------------
 print_prompt:
   push eax
@@ -574,11 +633,40 @@ print_prompt:
   push esi
   push edi
 
+  call process_get_uid
+  cmp eax, 0
+  je .is_root
+  mov esi, prompt_user
+  jmp .print_prefix
+.is_root:
+  mov esi, prompt_root
+.print_prefix:
   mov edi, [cons_cursor]
-  mov esi, prompt_string
-  mov bl, 0x0A               ; bright green
+  mov bl, 0x0A
   call print_string_pm
-  mov [cons_cursor], edi     ; update cursor past the prompt
+  mov [cons_cursor], edi
+
+  ; Print ':' then current path from C
+  mov edi, [cons_cursor]
+  mov al, ':'
+  mov bl, 0x0A
+  call print_char_pm
+  add edi, 2
+  mov [cons_cursor], edi
+
+  call vfs_get_cwd_path
+  mov esi, eax
+  mov edi, [cons_cursor]
+  mov bl, 0x0A
+  call print_string_pm
+  mov [cons_cursor], edi
+
+  ; Print "> "
+  mov esi, prompt_tail
+  mov edi, [cons_cursor]
+  mov bl, 0x0A
+  call print_string_pm
+  mov [cons_cursor], edi
 
   pop edi
   pop esi
@@ -748,6 +836,9 @@ memmap_kernel_msb: db 'Kernel memory map: ', 0
 mem_header: db 'Memory Regions: ', 0
 pmm_test_msg: db 'PMM Test - Allocated pages: ', 0
 prompt_string: db 'MyOS> ', 0
+prompt_root:   db 'admin@MyOS', 0
+prompt_user:   db 'user@MyOS', 0
+prompt_tail:   db '> ', 0
 
 ; History constants
 HISTORY_MAX equ 8

@@ -17,19 +17,32 @@ extern scroll_up_one_row
 extern clear_screen
 extern vfs_read
 extern vfs_readdir
+extern vfs_lookup
+extern vfs_get_root
+extern vfs_get_cwd
+extern vfs_set_cwd
+extern vfs_dir_entry_get_type
 extern ramfs_lookup_root
 
 ; C functions for new commands (CDECL)
 extern pit_get_ticks
 extern process_get_current
 extern process_get_by_pid
+extern process_set_uid
+extern process_get_uid
 extern ramfs_add_ram_file
+extern ramfs_remove_node
+extern kbd_buffer_get
 
 ; Language strings (English by default)
 extern cmd_alloc_en, cmd_memstat_en, cmd_help_en, cmd_free_en, cmd_clear_en, cmd_language_en
 extern cmd_ls_en, cmd_cat_en, cmd_disk_en
-extern cmd_echo_en, cmd_uptime_en, cmd_ps_en, cmd_write_en
-extern unknown_cmd_en, help_msg_en
+extern cmd_echo_en, cmd_uptime_en, cmd_ps_en, cmd_write_en, cmd_go_en, cmd_become_en, cmd_bc_en, cmd_rm_en
+extern cmd_mkdir_en
+extern cmd_cp_en
+extern cmd_mv_en
+extern cmd_find_en
+extern unknown_cmd_en, help_msg_en, help_all_en
 extern memstat_free_msg_en, memstat_used_msg_en
 extern alloc_success_msg_en, alloc_oom_msg_en
 extern free_ok_msg_en, free_fail_msg_en, free_usage_msg_en
@@ -39,12 +52,24 @@ extern disk_error_en, disk_usage_en, disk_reading_en
 extern uptime_msg_en, uptime_sec_en
 extern ps_header_en
 extern write_ok_en, write_usage_en, write_fail_en
+extern go_usage_en, go_ok_admin_en, go_ok_user_en, go_denied_en
+extern go_not_found_en, go_not_dir_en
+extern become_usage_en, become_ok_admin_en, become_ok_user_en, become_denied_en
+extern rm_usage_en, rm_not_found_en, rm_ok_en, rm_cancelled_en, rm_confirm_en, rm_yn_en, rm_not_empty_en, rm_cannot_root_en
+extern mkdir_usage_en, mkdir_ok_en, mkdir_fail_en, mkdir_exists_en
+extern cp_usage_en, cp_ok_en, cp_fail_en, cp_exists_en
+extern mv_usage_en, mv_ok_en, mv_fail_en, mv_exists_en
+extern find_usage_en, find_not_found_en
 
 ; Language strings (Catalan)
 extern cmd_alloc_ca, cmd_memstat_ca, cmd_help_ca, cmd_free_ca, cmd_clear_ca, cmd_language_ca
 extern cmd_ls_ca, cmd_cat_ca, cmd_disk_ca
-extern cmd_echo_ca, cmd_uptime_ca, cmd_ps_ca, cmd_write_ca
-extern unknown_cmd_ca, help_msg_ca
+extern cmd_echo_ca, cmd_uptime_ca, cmd_ps_ca, cmd_write_ca, cmd_go_ca, cmd_become_ca, cmd_bc_ca, cmd_rm_ca
+extern cmd_mkdir_ca
+extern cmd_cp_ca
+extern cmd_mv_ca
+extern cmd_find_ca
+extern unknown_cmd_ca, help_msg_ca, help_all_ca
 extern memstat_free_msg_ca, memstat_used_msg_ca
 extern alloc_success_msg_ca, alloc_oom_msg_ca
 extern free_ok_msg_ca, free_fail_msg_ca, free_usage_msg_ca
@@ -54,12 +79,26 @@ extern disk_error_ca, disk_usage_ca, disk_reading_ca
 extern uptime_msg_ca, uptime_sec_ca
 extern ps_header_ca
 extern write_ok_ca, write_usage_ca, write_fail_ca
+extern go_usage_ca, go_ok_admin_ca, go_ok_user_ca, go_denied_ca
+extern go_not_found_ca, go_not_dir_ca
+extern become_usage_ca, become_ok_admin_ca, become_ok_user_ca, become_denied_ca
+extern rm_usage_ca, rm_not_found_ca, rm_ok_ca, rm_cancelled_ca, rm_confirm_ca, rm_yn_ca, rm_not_empty_ca, rm_cannot_root_ca
+extern mkdir_usage_ca, mkdir_ok_ca, mkdir_fail_ca, mkdir_exists_ca
+extern cp_usage_ca, cp_ok_ca, cp_fail_ca, cp_exists_ca
+extern mv_usage_ca, mv_ok_ca, mv_fail_ca, mv_exists_ca
+extern find_usage_ca, find_not_found_ca
 
 ; Language strings (Spanish)
 extern cmd_alloc_es, cmd_memstat_es, cmd_help_es, cmd_free_es, cmd_clear_es, cmd_language_es
 extern cmd_ls_es, cmd_cat_es, cmd_disk_es
-extern cmd_echo_es, cmd_uptime_es, cmd_ps_es, cmd_write_es
-extern unknown_cmd_es, help_msg_es
+extern cmd_echo_es, cmd_uptime_es, cmd_ps_es, cmd_write_es, cmd_go_es, cmd_become_es, cmd_bc_es, cmd_rm_es
+extern cmd_mkdir_es
+extern cmd_cp_es
+extern cmd_mv_es
+extern cmd_find_es
+;extern cmd_rm_es_alias
+extern cmd_rm_ca_alias
+extern unknown_cmd_es, help_msg_es, help_all_es
 extern memstat_free_msg_es, memstat_used_msg_es
 extern alloc_success_msg_es, alloc_oom_msg_es
 extern free_ok_msg_es, free_fail_msg_es, free_usage_msg_es
@@ -69,9 +108,28 @@ extern disk_error_es, disk_usage_es, disk_reading_es
 extern uptime_msg_es, uptime_sec_es
 extern ps_header_es
 extern write_ok_es, write_usage_es, write_fail_es
+extern go_usage_es, go_ok_admin_es, go_ok_user_es, go_denied_es
+extern go_not_found_es, go_not_dir_es
+extern become_usage_es, become_ok_admin_es, become_ok_user_es, become_denied_es
+extern rm_usage_es, rm_not_found_es, rm_ok_es, rm_cancelled_es, rm_confirm_es, rm_yn_es, rm_not_empty_es, rm_cannot_root_es
+extern mkdir_usage_es, mkdir_ok_es, mkdir_fail_es, mkdir_exists_es
+extern cp_usage_es, cp_ok_es, cp_fail_es, cp_exists_es
+extern mv_usage_es, mv_ok_es, mv_fail_es, mv_exists_es
+extern find_usage_es, find_not_found_es
+extern ramfs_add_ram_file_at_path
+extern ramfs_mkdir_at_path
+extern ramfs_copy_file
+extern ramfs_move_node
+extern ramfs_find
+extern ramfs_find_get_result
 
 ; C function from ata_test.c (CDECL)
 extern ata_test_read_sector
+
+extern vfs_set_cwd_with_path
+extern vfs_get_cwd_path
+extern vfs_chdir_parent
+;extern ramfs_remove_node_recursive
 
 parse_command:
   push eax
@@ -230,7 +288,7 @@ newline_from_cursor:
   
   cmp eax, 25
   jl .no_scroll
-  
+
   call scroll_up_one_row
 
   mov eax, 24
@@ -370,11 +428,90 @@ handle_alloc:
   pop eax
   ret
 
+; ---------------------------------------------------------------------------
+; handle_help: Short help (full command names only) or "help all" (detailed usage).
+; ---------------------------------------------------------------------------
 handle_help:
+  push eax
+  push ebx
+  push edi
   push esi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .help_short
+
+  ; Check for "all" (same in every language)
+  mov al, [esi]
+  cmp al, 'a'
+  jne .help_short
+  cmp byte [esi + 1], 'l'
+  jne .help_short
+  cmp byte [esi + 2], 'l'
+  jne .help_short
+  mov al, [esi + 3]
+  cmp al, ' '
+  je .help_all
+  cmp al, 0
+  je .help_all
+
+.help_short:
+  ; Print the short help (may contain 0x0A for a second line)
   mov esi, [current_help_msg]
+  call print_multiline
+  jmp .help_done
+
+.help_all:
+  ; Walk the packed null-separated help block; stop at double-null
+  mov esi, [current_help_all]
+.help_all_loop:
+  cmp byte [esi], 0
+  je .help_done
   call print_line
+  jmp .help_all_loop
+
+.help_done:
   pop esi
+  pop edi
+  pop ebx
+  pop eax
+  ret
+
+; Helper: print a string that may contain 0x0A (newline) characters.
+; Splits at each 0x0A and calls print_line for each segment.
+print_multiline:
+  push eax
+  push ebx
+  push edi
+
+  mov edi, [cons_cursor]
+  mov bl, 0x0F
+
+.pml_loop:
+  lodsb
+  cmp al, 0
+  je .pml_done
+  cmp al, 10
+  je .pml_newline
+  mov [edi], al
+  mov [edi + 1], bl
+  add edi, 2
+  jmp .pml_loop
+
+.pml_newline:
+  mov [cons_cursor], edi
+  call newline_from_cursor
+  mov edi, [cons_cursor]
+  jmp .pml_loop
+
+.pml_done:
+  mov [cons_cursor], edi
+  call newline_from_cursor
+
+  pop edi
+  pop ebx
+  pop eax
   ret
 
 handle_clear:
@@ -421,47 +558,129 @@ handle_memstat:
 ; File system commands: ls, cat
 ; ---------------------------------------------------------------------------
 
+; VFS_NODE_DIR = 2 (from vfs.h) -- directories shown in blue
+VFS_NODE_FILE equ 1
+VFS_NODE_DIR  equ 2
+
+; ---------------------------------------------------------------------------
+; handle_ls: List current directory, or list a given path if argument provided.
+;   ls          -> list CWD
+;   ls /sistem  -> list /sistem
+; ---------------------------------------------------------------------------
 handle_ls:
   push eax
   push ebx
   push ecx
+  push edx
   push esi
   push edi
 
-  ; Get VFS root node (CDECL: result in eax; preserves ebx)
+  ; Check for optional path argument
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .ls_use_cwd
+
+  ; Build absolute path in go_path_buf using CWD for relative paths
+  mov edi, go_path_buf
+  call build_cwd_path
+
+  push go_path_buf
+  call vfs_lookup
+  add esp, 4
+  cmp eax, 0
+  je .ls_not_found
+  cmp byte [eax + 32], VFS_NODE_DIR
+  jne .ls_not_dir
+  mov ebx, eax
+  xor ecx, ecx
+  jmp .ls_next
+
+.ls_not_found:
+  mov esi, [current_go_not_found]
+  call print_line
+  jmp .ls_done
+
+.ls_not_dir:
+  mov esi, [current_go_not_dir]
+  call print_line
+  jmp .ls_done
+
+.ls_use_cwd:
+  ; List current working directory (CWD); fall back to root if CWD not set
+  call vfs_get_cwd
+  cmp eax, 0
+  jne .ls_have_dir
   call vfs_get_root
-  mov ebx, eax          ; ebx = root node pointer (CDECL-safe)
+.ls_have_dir:
+  mov ebx, eax          ; ebx = directory node pointer
   xor ecx, ecx          ; ecx = directory entry index
 
 .ls_next:
-  ; Save index -- vfs_readdir is CDECL and may clobber ecx
   push ecx
-
-  push dir_entry        ; arg3: output buffer
-  push ecx              ; arg2: entry index
-  push ebx              ; arg1: directory node
+  push dir_entry
+  push ecx
+  push ebx
   call vfs_readdir
   add esp, 12
-
-  ; Restore index
   pop ecx
 
   cmp eax, 0
-  jne .ls_done          ; non-zero -> no more entries / error
+  jne .ls_done
 
-  ; Print the entry name.  print_line saves/restores ebx internally,
-  ; so the root node pointer is safe across this call.
-  push ecx              ; save index across print_line
+  ; Wrap to new line if we're past column 46 (so name + "  " fits in 80)
+  push ebx
+  mov eax, [cons_cursor]
+  sub eax, 0xb8000
+  mov ebx, 160
+  xor edx, edx
+  div ebx               ; edx = offset in row (bytes)
+  pop ebx
+  cmp edx, 94           ; 47 chars * 2 = 94 bytes; if >= 47 chars, wrap
+  jb .ls_no_wrap
+  call newline_from_cursor
+
+.ls_no_wrap:
+  ; Save ebx (directory node) so we can use bl for color without corrupting the pointer
+  push ebx
+  ; Get type from C so we don't depend on struct layout: 1 = file, 2 = directory
+  push dir_entry
+  call vfs_dir_entry_get_type
+  add esp, 4
+  cmp eax, 2             ; VFS_NODE_DIR = 2
+  jne .ls_white
+  mov bl, 0x0D           ; pink (light magenta) for directories
+  jmp .ls_print_name
+.ls_white:
+  mov bl, 0x0F           ; white for files
+
+.ls_print_name:
+  mov edi, [cons_cursor]
   mov esi, dir_entry
-  call print_line
-  pop ecx               ; restore index
+  call print_string_pm
+  mov [cons_cursor], edi
 
-  inc ecx               ; advance to next directory entry
+  ; Two spaces between entries (white)
+  mov al, ' '
+  mov bl, 0x0F
+  call print_char_pm
+  add edi, 2
+  mov al, ' '
+  call print_char_pm
+  add edi, 2
+  mov [cons_cursor], edi
+
+  pop ebx               ; restore directory node pointer for next vfs_readdir
+  inc ecx
   jmp .ls_next
 
 .ls_done:
+  ; One newline after the whole listing
+  call newline_from_cursor
+
   pop edi
   pop esi
+  pop edx
   pop ecx
   pop ebx
   pop eax
@@ -498,13 +717,16 @@ handle_cat:
   jmp .cat_done
 
 .cat_have_name:
-  ; esi points to filename (0-terminated by command parser)
-  push filename_node
-  push esi
-  call ramfs_lookup_root
-  add esp, 8
+  ; Build absolute path in cat_path_buf using CWD for relative paths
+  mov edi, cat_path_buf
+  call build_cwd_path
+
+  push cat_path_buf
+  call vfs_lookup
+  add esp, 4
+  mov [filename_node], eax
   cmp eax, 0
-  jne .cat_not_found
+  je .cat_not_found
 
   ; Read file into buffer
   mov eax, [filename_node]   ; node*
@@ -911,7 +1133,7 @@ handle_ps:
   ret
 
 ; ---------------------------------------------------------------------------
-; handle_write: Create a file in RAMFS.
+;   handle_write: Create a file in RAMFS.
 ;   write filename.txt This is the content
 ; ---------------------------------------------------------------------------
 handle_write:
@@ -1006,16 +1228,59 @@ handle_write:
   pop edi                    ; filename
   pop ecx                    ; length
 
-  ; Advance pool index
+  ; Build full path: if filename starts with '/', use it as absolute path;
+  ; otherwise prepend CWD path so file is created in the current directory.
+  push ecx
+  push ebx
+  mov eax, edi                ; EAX = filename pointer
+  mov esi, cat_path_buf
+  cmp byte [eax], '/'
+  je .write_path_abs
+
+  ; Relative path: copy CWD first, then '/', then filename
+  push eax
+  call vfs_get_cwd_path       ; returns pointer in EAX
+  mov edx, eax                ; EDX = CWD string
+  pop eax                     ; EAX = filename again
+.write_cwd_copy:
+  mov cl, [edx]
+  cmp cl, 0
+  je .write_cwd_done
+  mov [esi], cl
+  inc edx
+  inc esi
+  jmp .write_cwd_copy
+.write_cwd_done:
+  ; Add '/' separator unless CWD already ends with '/'
+  cmp esi, cat_path_buf
+  je .write_add_slash
+  cmp byte [esi - 1], '/'
+  je .write_path_abs_copy
+.write_add_slash:
+  mov byte [esi], '/'
+  inc esi
+  jmp .write_path_abs_copy
+
+.write_path_abs:
+  ; Absolute path: just copy filename as-is
+.write_path_abs_copy:
+  mov dl, [eax]
+  mov [esi], dl
+  inc eax
+  inc esi
+  cmp dl, 0
+  jne .write_path_abs_copy
+  pop ebx
+  pop ecx
+
   mov eax, [write_pool_idx]
   inc eax
   mov [write_pool_idx], eax
 
-  ; Call ramfs_add_ram_file(name, data, size) -- CDECL
-  push ecx                   ; arg3: size
-  push ebx                   ; arg2: persistent data pointer
-  push edi                   ; arg1: filename pointer
-  call ramfs_add_ram_file
+  push ecx
+  push ebx
+  push cat_path_buf
+  call ramfs_add_ram_file_at_path
   add esp, 12
 
   cmp eax, 0
@@ -1038,6 +1303,705 @@ handle_write:
   pop edi
   pop esi
   pop ecx
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_rm: Remove file (no confirm) or directory (confirm y/n).
+;   rm <path>   -> file: delete at once; directory: "Are you sure ... ? y/n?"
+; ---------------------------------------------------------------------------
+handle_rm:
+  push eax
+  push ebx
+  push ecx
+  push edx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .rm_usage
+
+  ; Build absolute path in go_path_buf using CWD for relative paths
+  mov edi, go_path_buf
+  call build_cwd_path
+
+  push go_path_buf
+  call vfs_lookup
+  add esp, 4
+  cmp eax, 0
+  je .rm_not_found
+
+  ; EAX = node. Check type: 1 = file, 2 = directory
+  cmp byte [eax + 32], VFS_NODE_DIR
+  je .rm_is_dir
+
+  ; File: remove immediately
+  push eax
+  call ramfs_remove_node
+  add esp, 4
+  cmp eax, 0
+  je .rm_ok
+  cmp eax, -1
+  je .rm_cannot_root
+  jmp .rm_done
+
+.rm_is_dir:
+  mov ebx, eax                    ; save node for later
+  ; Print "Are you sure you want to delete the directory "
+  mov esi, [current_rm_confirm]
+  call print_string_no_newline
+  ; Print path (go_path_buf)
+  mov esi, go_path_buf
+  call print_string_no_newline
+  ; Print "? y/n?"
+  mov esi, [current_rm_yn]
+  call print_line
+
+.rm_wait_key:
+  call kbd_buffer_get
+  cmp eax, -1
+  je .rm_wait_key
+  and eax, 0xFF
+  cmp al, 'y'
+  je .rm_do_del
+  cmp al, 'Y'
+  je .rm_do_del
+  ; n or anything else -> cancelled
+  mov esi, [current_rm_cancelled]
+  call print_line
+  jmp .rm_done
+
+.rm_do_del:
+  push ebx
+  call ramfs_remove_node
+  add esp, 4
+  cmp eax, 0
+  je .rm_ok
+  cmp eax, -1
+  je .rm_cannot_root
+  mov esi, [current_rm_not_found]
+  call print_line
+  jmp .rm_done
+
+.rm_usage:
+  mov esi, [current_rm_usage]
+  call print_line
+  jmp .rm_done
+.rm_not_found:
+  mov esi, [current_rm_not_found]
+  call print_line
+  jmp .rm_done
+.rm_ok:
+  mov esi, [current_rm_ok]
+  call print_line
+  jmp .rm_done
+.rm_cannot_root:
+  mov esi, [current_rm_cannot_root]
+  call print_line
+
+.rm_done:
+  pop edi
+  pop esi
+  pop edx
+  pop ecx
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_mkdir: Create a directory. Usage: mkdir <path>
+;   e.g. mkdir /tmp/foo  or  mkdir sistem/config
+; ---------------------------------------------------------------------------
+handle_mkdir:
+  push eax
+  push ebx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .mkdir_usage
+
+  ; NUL-terminate the argument at the first space
+  mov edi, esi
+.mkdir_find_end:
+  mov al, [edi]
+  cmp al, ' '
+  je .mkdir_term
+  cmp al, 0
+  je .mkdir_build
+  inc edi
+  jmp .mkdir_find_end
+.mkdir_term:
+  mov byte [edi], 0
+.mkdir_build:
+  ; Build CWD-relative path into go_path_buf
+  mov edi, go_path_buf
+  call build_cwd_path
+
+  push go_path_buf
+  call ramfs_mkdir_at_path
+  add esp, 4
+
+  cmp eax, 0
+  je .mkdir_ok
+  cmp eax, -2
+  je .mkdir_exists
+  ; -1: fail
+  mov esi, [current_mkdir_fail]
+  call print_line
+  jmp .mkdir_done
+
+.mkdir_usage:
+  mov esi, [current_mkdir_usage]
+  call print_line
+  jmp .mkdir_done
+.mkdir_ok:
+  mov esi, [current_mkdir_ok]
+  call print_line
+  jmp .mkdir_done
+.mkdir_exists:
+  mov esi, [current_mkdir_exists]
+  call print_line
+
+.mkdir_done:
+  pop edi
+  pop esi
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; build_cwd_path: Resolve a path relative to CWD into a buffer.
+;   Input : ESI = input path string (NUL-terminated)
+;           EDI = destination buffer (must be >= 64 bytes)
+;   If the path starts with '/', it is copied as-is (absolute).
+;   Otherwise CWD + '/' + path is built (relative).
+;   Clobbers: EAX, ECX, EDX
+; ---------------------------------------------------------------------------
+build_cwd_path:
+  cmp byte [esi], '/'
+  je .bcp_abs
+
+  push esi
+  call vfs_get_cwd_path
+  mov edx, eax
+  pop esi
+.bcp_cwd:
+  mov cl, [edx]
+  cmp cl, 0
+  je .bcp_sep
+  mov [edi], cl
+  inc edx
+  inc edi
+  jmp .bcp_cwd
+.bcp_sep:
+  cmp byte [edi - 1], '/'
+  je .bcp_copy
+  mov byte [edi], '/'
+  inc edi
+  jmp .bcp_copy
+
+.bcp_abs:
+.bcp_copy:
+  mov cl, [esi]
+  mov [edi], cl
+  inc esi
+  inc edi
+  cmp cl, 0
+  jne .bcp_copy
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_cp: Copy a file.  Usage: cp <source> <dest>
+; ---------------------------------------------------------------------------
+handle_cp:
+  push eax
+  push ebx
+  push ecx
+  push edx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .cp_usage
+
+  ; ESI = source start. Find end of source (space or NUL).
+  mov edi, esi
+.cp_find_space:
+  mov al, [esi]
+  cmp al, ' '
+  je .cp_got_src
+  cmp al, 0
+  je .cp_usage
+  inc esi
+  jmp .cp_find_space
+
+.cp_got_src:
+  mov byte [esi], 0
+  inc esi
+
+.cp_skip_space:
+  cmp byte [esi], ' '
+  jne .cp_have_dest
+  inc esi
+  jmp .cp_skip_space
+
+.cp_have_dest:
+  cmp byte [esi], 0
+  je .cp_usage
+
+  ; EDI = source string, ESI = dest string
+  push esi
+
+  ; Build source full path in cat_path_buf
+  mov esi, edi
+  mov edi, cat_path_buf
+  call build_cwd_path
+
+  ; Build dest full path in go_path_buf
+  pop esi
+  mov edi, go_path_buf
+  call build_cwd_path
+
+  ; ramfs_copy_file(cat_path_buf, go_path_buf)
+  push go_path_buf
+  push cat_path_buf
+  call ramfs_copy_file
+  add esp, 8
+
+  cmp eax, 0
+  je .cp_ok
+  cmp eax, -2
+  je .cp_exists
+  ; -1 or -3: generic fail
+  mov esi, [current_cp_fail]
+  call print_line
+  jmp .cp_done
+
+.cp_usage:
+  mov esi, [current_cp_usage]
+  call print_line
+  jmp .cp_done
+.cp_ok:
+  mov esi, [current_cp_ok]
+  call print_line
+  jmp .cp_done
+.cp_exists:
+  mov esi, [current_cp_exists]
+  call print_line
+
+.cp_done:
+  pop edi
+  pop esi
+  pop edx
+  pop ecx
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_mv: Move/rename a file or directory.  Usage: mv <source> <dest>
+;   Relinks the parent pointer — no data copy (like a real filesystem rename).
+; ---------------------------------------------------------------------------
+handle_mv:
+  push eax
+  push ebx
+  push ecx
+  push edx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .mv_usage
+
+  mov edi, esi
+.mv_find_space:
+  mov al, [esi]
+  cmp al, ' '
+  je .mv_got_src
+  cmp al, 0
+  je .mv_usage
+  inc esi
+  jmp .mv_find_space
+
+.mv_got_src:
+  mov byte [esi], 0
+  inc esi
+
+.mv_skip_space:
+  cmp byte [esi], ' '
+  jne .mv_have_dest
+  inc esi
+  jmp .mv_skip_space
+
+.mv_have_dest:
+  cmp byte [esi], 0
+  je .mv_usage
+
+  push esi
+
+  ; Build source full path in cat_path_buf
+  mov esi, edi
+  mov edi, cat_path_buf
+  call build_cwd_path
+
+  ; Build dest full path in go_path_buf
+  pop esi
+  mov edi, go_path_buf
+  call build_cwd_path
+
+  ; Check if dest is an existing directory (Unix: mv file dir → dir/file)
+  push go_path_buf
+  call vfs_lookup
+  add esp, 4
+  cmp eax, 0
+  je .mv_do_move              ; dest doesn't exist → simple rename/move
+  cmp byte [eax + 32], VFS_NODE_DIR
+  jne .mv_exists              ; dest is an existing file → error
+
+  ; Dest is a directory: append "/" + basename(src) to go_path_buf
+  mov edi, go_path_buf
+.mv_find_end:
+  cmp byte [edi], 0
+  je .mv_at_end
+  inc edi
+  jmp .mv_find_end
+.mv_at_end:
+  cmp byte [edi - 1], '/'
+  je .mv_has_slash
+  mov byte [edi], '/'
+  inc edi
+.mv_has_slash:
+  ; Find basename of source (char after last '/')
+  mov esi, cat_path_buf
+  mov edx, esi
+.mv_find_base:
+  cmp byte [esi], 0
+  je .mv_copy_base
+  cmp byte [esi], '/'
+  jne .mv_next_bc
+  lea edx, [esi + 1]
+.mv_next_bc:
+  inc esi
+  jmp .mv_find_base
+.mv_copy_base:
+  mov esi, edx
+.mv_copy_bn:
+  mov al, [esi]
+  mov [edi], al
+  inc esi
+  inc edi
+  cmp al, 0
+  jne .mv_copy_bn
+
+.mv_do_move:
+  push go_path_buf
+  push cat_path_buf
+  call ramfs_move_node
+  add esp, 8
+
+  cmp eax, 0
+  je .mv_ok
+  cmp eax, -2
+  je .mv_exists
+  mov esi, [current_mv_fail]
+  call print_line
+  jmp .mv_done
+
+.mv_usage:
+  mov esi, [current_mv_usage]
+  call print_line
+  jmp .mv_done
+.mv_ok:
+  mov esi, [current_mv_ok]
+  call print_line
+  jmp .mv_done
+.mv_exists:
+  mov esi, [current_mv_exists]
+  call print_line
+
+.mv_done:
+  pop edi
+  pop esi
+  pop edx
+  pop ecx
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_find: Recursive search.  Usage: find <name>  or  find <path> <name>
+;   find <name>            — searches from / (entire filesystem)
+;   find <path> <name>     — searches under <path>
+; ---------------------------------------------------------------------------
+handle_find:
+  push eax
+  push ebx
+  push ecx
+  push edx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .find_usage
+
+  ; ESI = first argument. Check if there's a second argument.
+  mov edi, esi                ; EDI = start of arg1
+.find_scan_arg1:
+  mov al, [esi]
+  cmp al, ' '
+  je .find_two_args
+  cmp al, 0
+  je .find_one_arg
+  inc esi
+  jmp .find_scan_arg1
+
+.find_one_arg:
+  ; Only one arg: name = EDI, path = "/" (search whole filesystem)
+  push edi                    ; name
+  push find_root_path         ; start_path = "/"
+  call ramfs_find
+  add esp, 8
+  jmp .find_show
+
+.find_two_args:
+  mov byte [esi], 0           ; NUL-terminate arg1
+  inc esi
+.find_skip_sp:
+  cmp byte [esi], ' '
+  jne .find_have_two
+  inc esi
+  jmp .find_skip_sp
+.find_have_two:
+  cmp byte [esi], 0
+  je .find_usage
+
+  ; EDI = path arg, ESI = name arg
+  ; Resolve path through CWD
+  push esi                    ; save name pointer
+  mov esi, edi
+  mov edi, go_path_buf
+  call build_cwd_path
+  pop esi                     ; restore name pointer
+
+  push esi                    ; name
+  push go_path_buf            ; start_path (absolute)
+  call ramfs_find
+  add esp, 8
+
+.find_show:
+  ; EAX = number of results
+  cmp eax, 0
+  je .find_none
+
+  mov ecx, eax               ; ECX = total results
+  xor ebx, ebx               ; EBX = current index
+
+.find_print_loop:
+  cmp ebx, ecx
+  jge .find_done
+
+  push ecx
+  push ebx
+  push ebx                   ; arg: index
+  call ramfs_find_get_result
+  add esp, 4
+  pop ebx
+  pop ecx
+
+  cmp eax, 0
+  je .find_done
+
+  mov esi, eax
+  call print_line
+
+  inc ebx
+  jmp .find_print_loop
+
+.find_none:
+  mov esi, [current_find_not_found]
+  call print_line
+  jmp .find_done
+
+.find_usage:
+  mov esi, [current_find_usage]
+  call print_line
+
+.find_done:
+  pop edi
+  pop esi
+  pop edx
+  pop ecx
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_go: Change directory (cd). Usage: go <path>  or  go ..
+;   go /sistem, go /, go /home/normal,  go ..  (parent directory)
+; ---------------------------------------------------------------------------
+handle_go:
+  push eax
+  push ebx
+  push ecx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .go_usage
+
+  ; Special case: ".." -> go to parent directory
+  mov al, [esi]
+  cmp al, '.'
+  jne .go_normal
+  cmp byte [esi + 1], '.'
+  jne .go_normal
+  mov al, [esi + 2]
+  cmp al, ' '
+  je .go_parent
+  cmp al, 0
+  je .go_parent
+
+.go_normal:
+  ; Build absolute path in go_path_buf using CWD for relative paths
+  mov edi, go_path_buf
+  call build_cwd_path
+
+  push go_path_buf
+  call vfs_lookup
+  add esp, 4
+  cmp eax, 0
+  je .go_not_found
+
+  ; Check it's a directory (type at offset 32 in vfs_node_t)
+  cmp byte [eax + 32], VFS_NODE_DIR
+  jne .go_not_dir
+
+  push go_path_buf
+  push eax
+  call vfs_set_cwd_with_path
+  add esp, 8
+  jmp .go_done
+
+.go_parent:
+  call vfs_chdir_parent
+  jmp .go_done
+
+.go_usage:
+  mov esi, [current_go_usage]
+  call print_line
+  jmp .go_done
+.go_not_found:
+  mov esi, [current_go_not_found]
+  call print_line
+  jmp .go_done
+.go_not_dir:
+  mov esi, [current_go_not_dir]
+  call print_line
+
+.go_done:
+  pop edi
+  pop esi
+  pop ecx
+  pop ebx
+  pop eax
+  ret
+
+; ---------------------------------------------------------------------------
+; handle_become: Switch user. "become admin" / "bc admin" -> root, "become user" / "bc user" -> normal user.
+;   Only root can switch. Usage: become admin | become user  (or bc admin | bc user)
+; ---------------------------------------------------------------------------
+handle_become:
+  push eax
+  push ebx
+  push esi
+  push edi
+
+  mov esi, command_buffer
+  call skip_to_argument
+  cmp byte [esi], 0
+  je .become_usage
+
+  mov al, [esi]
+  cmp al, 'a'
+  jne .become_try_user
+  cmp byte [esi + 1], 'd'
+  jne .become_usage
+  cmp byte [esi + 2], 'm'
+  jne .become_usage
+  cmp byte [esi + 3], 'i'
+  jne .become_usage
+  cmp byte [esi + 4], 'n'
+  jne .become_usage
+  mov al, [esi + 5]
+  cmp al, ' '
+  je .become_do_admin
+  cmp al, 0
+  je .become_do_admin
+  jmp .become_usage
+
+.become_do_admin:
+  call process_get_uid
+  cmp eax, 0
+  jne .become_denied
+  push 0
+  call process_set_uid
+  add esp, 4
+  mov esi, [current_become_ok_admin]
+  call print_line
+  jmp .become_done
+
+.become_try_user:
+  cmp al, 'u'
+  jne .become_usage
+  cmp byte [esi + 1], 's'
+  jne .become_usage
+  cmp byte [esi + 2], 'e'
+  jne .become_usage
+  cmp byte [esi + 3], 'r'
+  jne .become_usage
+  mov al, [esi + 4]
+  cmp al, ' '
+  je .become_do_user
+  cmp al, 0
+  je .become_do_user
+  jmp .become_usage
+
+.become_do_user:
+  call process_get_uid
+  cmp eax, 0
+  jne .become_denied
+  push 1
+  call process_set_uid
+  add esp, 4
+  mov esi, [current_become_ok_user]
+  call print_line
+  jmp .become_done
+
+.become_denied:
+  mov esi, [current_become_denied]
+  call print_line
+  jmp .become_done
+.become_usage:
+  mov esi, [current_become_usage]
+  call print_line
+
+.become_done:
+  pop edi
+  pop esi
   pop ebx
   pop eax
   ret
@@ -1129,6 +2093,7 @@ set_language_en:
   mov dword [current_command_table], command_table_en
   mov dword [current_unknown_cmd], unknown_cmd_en
   mov dword [current_help_msg], help_msg_en
+  mov dword [current_help_all], help_all_en
   mov dword [current_memstat_free_msg], memstat_free_msg_en
   mov dword [current_memstat_used_msg], memstat_used_msg_en
   mov dword [current_alloc_success_msg], alloc_success_msg_en
@@ -1151,6 +2116,38 @@ set_language_en:
   mov dword [current_write_ok], write_ok_en
   mov dword [current_write_usage], write_usage_en
   mov dword [current_write_fail], write_fail_en
+  mov dword [current_go_usage], go_usage_en
+  mov dword [current_go_ok_admin], go_ok_admin_en
+  mov dword [current_go_ok_user], go_ok_user_en
+  mov dword [current_go_denied], go_denied_en
+  mov dword [current_go_not_found], go_not_found_en
+  mov dword [current_go_not_dir], go_not_dir_en
+  mov dword [current_become_usage], become_usage_en
+  mov dword [current_become_ok_admin], become_ok_admin_en
+  mov dword [current_become_ok_user], become_ok_user_en
+  mov dword [current_become_denied], become_denied_en
+  mov dword [current_rm_usage], rm_usage_en
+  mov dword [current_rm_not_found], rm_not_found_en
+  mov dword [current_rm_ok], rm_ok_en
+  mov dword [current_rm_cancelled], rm_cancelled_en
+  mov dword [current_rm_confirm], rm_confirm_en
+  mov dword [current_rm_yn], rm_yn_en
+  mov dword [current_rm_not_empty], rm_not_empty_en
+  mov dword [current_rm_cannot_root], rm_cannot_root_en
+  mov dword [current_mkdir_usage], mkdir_usage_en
+  mov dword [current_mkdir_ok], mkdir_ok_en
+  mov dword [current_mkdir_fail], mkdir_fail_en
+  mov dword [current_mkdir_exists], mkdir_exists_en
+  mov dword [current_cp_usage], cp_usage_en
+  mov dword [current_cp_ok], cp_ok_en
+  mov dword [current_cp_fail], cp_fail_en
+  mov dword [current_cp_exists], cp_exists_en
+  mov dword [current_mv_usage], mv_usage_en
+  mov dword [current_mv_ok], mv_ok_en
+  mov dword [current_mv_fail], mv_fail_en
+  mov dword [current_mv_exists], mv_exists_en
+  mov dword [current_find_usage], find_usage_en
+  mov dword [current_find_not_found], find_not_found_en
   mov esi, language_set_en
   call print_string_no_newline
   mov esi, lang_en_name
@@ -1161,6 +2158,7 @@ set_language_ca:
   mov dword [current_command_table], command_table_ca
   mov dword [current_unknown_cmd], unknown_cmd_ca
   mov dword [current_help_msg], help_msg_ca
+  mov dword [current_help_all], help_all_ca
   mov dword [current_memstat_free_msg], memstat_free_msg_ca
   mov dword [current_memstat_used_msg], memstat_used_msg_ca
   mov dword [current_alloc_success_msg], alloc_success_msg_ca
@@ -1183,6 +2181,38 @@ set_language_ca:
   mov dword [current_write_ok], write_ok_ca
   mov dword [current_write_usage], write_usage_ca
   mov dword [current_write_fail], write_fail_ca
+  mov dword [current_go_usage], go_usage_ca
+  mov dword [current_go_ok_admin], go_ok_admin_ca
+  mov dword [current_go_ok_user], go_ok_user_ca
+  mov dword [current_go_denied], go_denied_ca
+  mov dword [current_go_not_found], go_not_found_ca
+  mov dword [current_go_not_dir], go_not_dir_ca
+  mov dword [current_become_usage], become_usage_ca
+  mov dword [current_become_ok_admin], become_ok_admin_ca
+  mov dword [current_become_ok_user], become_ok_user_ca
+  mov dword [current_become_denied], become_denied_ca
+  mov dword [current_rm_usage], rm_usage_ca
+  mov dword [current_rm_not_found], rm_not_found_ca
+  mov dword [current_rm_ok], rm_ok_ca
+  mov dword [current_rm_cancelled], rm_cancelled_ca
+  mov dword [current_rm_confirm], rm_confirm_ca
+  mov dword [current_rm_yn], rm_yn_ca
+  mov dword [current_rm_not_empty], rm_not_empty_ca
+  mov dword [current_rm_cannot_root], rm_cannot_root_ca
+  mov dword [current_mkdir_usage], mkdir_usage_ca
+  mov dword [current_mkdir_ok], mkdir_ok_ca
+  mov dword [current_mkdir_fail], mkdir_fail_ca
+  mov dword [current_mkdir_exists], mkdir_exists_ca
+  mov dword [current_cp_usage], cp_usage_ca
+  mov dword [current_cp_ok], cp_ok_ca
+  mov dword [current_cp_fail], cp_fail_ca
+  mov dword [current_cp_exists], cp_exists_ca
+  mov dword [current_mv_usage], mv_usage_ca
+  mov dword [current_mv_ok], mv_ok_ca
+  mov dword [current_mv_fail], mv_fail_ca
+  mov dword [current_mv_exists], mv_exists_ca
+  mov dword [current_find_usage], find_usage_ca
+  mov dword [current_find_not_found], find_not_found_ca
   mov esi, language_set_ca
   call print_string_no_newline
   mov esi, lang_ca_name
@@ -1193,6 +2223,7 @@ set_language_es:
   mov dword [current_command_table], command_table_es
   mov dword [current_unknown_cmd], unknown_cmd_es
   mov dword [current_help_msg], help_msg_es
+  mov dword [current_help_all], help_all_es
   mov dword [current_memstat_free_msg], memstat_free_msg_es
   mov dword [current_memstat_used_msg], memstat_used_msg_es
   mov dword [current_alloc_success_msg], alloc_success_msg_es
@@ -1215,6 +2246,38 @@ set_language_es:
   mov dword [current_write_ok], write_ok_es
   mov dword [current_write_usage], write_usage_es
   mov dword [current_write_fail], write_fail_es
+  mov dword [current_go_usage], go_usage_es
+  mov dword [current_go_ok_admin], go_ok_admin_es
+  mov dword [current_go_ok_user], go_ok_user_es
+  mov dword [current_go_denied], go_denied_es
+  mov dword [current_go_not_found], go_not_found_es
+  mov dword [current_go_not_dir], go_not_dir_es
+  mov dword [current_become_usage], become_usage_es
+  mov dword [current_become_ok_admin], become_ok_admin_es
+  mov dword [current_become_ok_user], become_ok_user_es
+  mov dword [current_become_denied], become_denied_es
+  mov dword [current_rm_usage], rm_usage_es
+  mov dword [current_rm_not_found], rm_not_found_es
+  mov dword [current_rm_ok], rm_ok_es
+  mov dword [current_rm_cancelled], rm_cancelled_es
+  mov dword [current_rm_confirm], rm_confirm_es
+  mov dword [current_rm_yn], rm_yn_es
+  mov dword [current_rm_not_empty], rm_not_empty_es
+  mov dword [current_rm_cannot_root], rm_cannot_root_es
+  mov dword [current_mkdir_usage], mkdir_usage_es
+  mov dword [current_mkdir_ok], mkdir_ok_es
+  mov dword [current_mkdir_fail], mkdir_fail_es
+  mov dword [current_mkdir_exists], mkdir_exists_es
+  mov dword [current_cp_usage], cp_usage_es
+  mov dword [current_cp_ok], cp_ok_es
+  mov dword [current_cp_fail], cp_fail_es
+  mov dword [current_cp_exists], cp_exists_es
+  mov dword [current_mv_usage], mv_usage_es
+  mov dword [current_mv_ok], mv_ok_es
+  mov dword [current_mv_fail], mv_fail_es
+  mov dword [current_mv_exists], mv_exists_es
+  mov dword [current_find_usage], find_usage_es
+  mov dword [current_find_not_found], find_not_found_es
   mov esi, language_set_es
   call print_string_no_newline
   mov esi, lang_es_name
@@ -1250,6 +2313,14 @@ command_table_en:
   dd cmd_uptime_en, handle_uptime
   dd cmd_ps_en, handle_ps
   dd cmd_write_en, handle_write
+  dd cmd_go_en, handle_go
+  dd cmd_become_en, handle_become
+  dd cmd_bc_en, handle_become
+  dd cmd_rm_en, handle_rm
+  dd cmd_mkdir_en, handle_mkdir
+  dd cmd_cp_en, handle_cp
+  dd cmd_mv_en, handle_mv
+  dd cmd_find_en, handle_find
   dd 0, 0
 
 command_table_ca:
@@ -1266,6 +2337,14 @@ command_table_ca:
   dd cmd_uptime_ca, handle_uptime
   dd cmd_ps_ca, handle_ps
   dd cmd_write_ca, handle_write
+  dd cmd_go_ca, handle_go
+  dd cmd_become_ca, handle_become
+  dd cmd_bc_ca, handle_become
+  dd cmd_rm_ca, handle_rm
+  dd cmd_mkdir_ca, handle_mkdir
+  dd cmd_cp_ca, handle_cp
+  dd cmd_mv_ca, handle_mv
+  dd cmd_find_ca, handle_find
   dd 0, 0
 
 command_table_es:
@@ -1282,6 +2361,15 @@ command_table_es:
   dd cmd_uptime_es, handle_uptime
   dd cmd_ps_es, handle_ps
   dd cmd_write_es, handle_write
+  dd cmd_go_es, handle_go
+  dd cmd_become_es, handle_become
+  dd cmd_bc_es, handle_become
+  dd cmd_rm_es, handle_rm
+  dd cmd_mkdir_es, handle_mkdir
+  dd cmd_cp_es, handle_cp
+  dd cmd_mv_es, handle_mv
+  dd cmd_find_es, handle_find
+;  dd cmd_rm_es_alias, handle_rm
   dd 0, 0
 
 section .bss
@@ -1295,6 +2383,8 @@ cmd_pos: resd 1
 dir_entry:      resb 36      ; 32 name + 4 type
 filename_node:  resd 1
 cat_buffer:     resb 256
+cat_path_buf:   resb 64      ; path for vfs_lookup (e.g. /readme.txt or /sistem/file)
+go_path_buf:    resb 64     ; path for go (cd) command
 
 ; Persistent buffer pool for user-written files (write command)
 ; Each file gets a 64-byte slot to store its content persistently.
@@ -1328,6 +2418,7 @@ global current_disk_reading_msg
 current_command_table: dd command_table_en
 current_unknown_cmd: dd unknown_cmd_en
 current_help_msg: dd help_msg_en
+current_help_all: dd help_all_en
 current_memstat_free_msg: dd memstat_free_msg_en
 current_memstat_used_msg: dd memstat_used_msg_en
 current_alloc_success_msg: dd alloc_success_msg_en
@@ -1357,6 +2448,7 @@ lang_ca_name: db 'Catala', 0
 lang_es_name: db 'Espanol', 0
 
 ; Shared formatting strings (language-independent)
+find_root_path: db '/', 0
 uptime_ticks_str: db ' ticks (', 0
 ps_tab:           db '    ', 0
 ps_state_run:     db 'RUN     ', 0
@@ -1372,3 +2464,35 @@ current_ps_header:     dd ps_header_en
 current_write_ok:      dd write_ok_en
 current_write_usage:   dd write_usage_en
 current_write_fail:    dd write_fail_en
+current_go_usage:     dd go_usage_en
+current_go_ok_admin:  dd go_ok_admin_en
+current_go_ok_user:   dd go_ok_user_en
+current_go_denied:    dd go_denied_en
+current_go_not_found: dd go_not_found_en
+current_go_not_dir:   dd go_not_dir_en
+current_become_usage:   dd become_usage_en
+current_become_ok_admin: dd become_ok_admin_en
+current_become_ok_user:  dd become_ok_user_en
+current_become_denied:   dd become_denied_en
+current_rm_usage:       dd rm_usage_en
+current_rm_not_found:   dd rm_not_found_en
+current_rm_ok:          dd rm_ok_en
+current_rm_cancelled:   dd rm_cancelled_en
+current_rm_confirm:     dd rm_confirm_en
+current_rm_yn:          dd rm_yn_en
+current_rm_not_empty:   dd rm_not_empty_en
+current_rm_cannot_root: dd rm_cannot_root_en
+current_mkdir_usage:    dd mkdir_usage_en
+current_mkdir_ok:        dd mkdir_ok_en
+current_mkdir_fail:      dd mkdir_fail_en
+current_mkdir_exists:    dd mkdir_exists_en
+current_cp_usage:       dd cp_usage_en
+current_cp_ok:          dd cp_ok_en
+current_cp_fail:        dd cp_fail_en
+current_cp_exists:      dd cp_exists_en
+current_mv_usage:       dd mv_usage_en
+current_mv_ok:          dd mv_ok_en
+current_mv_fail:        dd mv_fail_en
+current_mv_exists:      dd mv_exists_en
+current_find_usage:     dd find_usage_en
+current_find_not_found: dd find_not_found_en

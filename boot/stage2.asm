@@ -11,29 +11,49 @@ mov si, switching_msg
 call print_string
 call delay
 
-; Load kernel from sector 4 to 0x3000
-; Kernel is ~22KB now (43 sectors) and will grow.
-; Load 60 sectors (30KB) to give headroom.
-; On QEMU hard disk geometry (63 sect/track), sector 4..63 = 60 sectors max
-; on a single track, so this is safe for a single INT 0x13 call.
-mov ah, 0x02
-mov al, 60       ; Load 60 sectors (30 KB) for kernel
-mov ch, 0
-mov cl, 4       ; Start from sector 4
-mov dh, 0
-mov dl, 0x80
+; Load kernel from disk to 0x3000.
+; QEMU hard-disk geometry has 63 sectors/track, so a single INT 0x13
+; read from CHS(0,0,4) can load at most 60 sectors (30 KB).
+; The kernel is now >30 KB, so we do TWO reads across the track boundary:
+;   Read 1: 60 sectors from head 0, CHS(0,0,4)  -> LBA  3..62   -> 0x3000
+;   Read 2: 60 sectors from head 1, CHS(0,1,1)  -> LBA 63..122  -> 0xA800
+; Total capacity: 120 sectors = 60 KB.
 
-mov bx, 0x3000  ; Load kernel to 0x3000
+; --- Read 1: head 0 ---
+mov ah, 0x02
+mov al, 60       ; 60 sectors (30 KB)
+mov ch, 0
+mov cl, 4        ; CHS sector 4 (= LBA 3)
+mov dh, 0        ; head 0
+mov dl, 0x80
+mov bx, 0x3000   ; destination
 int 0x13
 jc error
 
-; CRITICAL: Move stack above the kernel's .data section.
-; The kernel binary now extends to ~0x8600 (.data section).
-; The old stack at SP=0x8000 grows DOWNWARD into this area,
-; corrupting command strings and language pointers whenever
-; BIOS calls (E820, INT 0x10) push data onto the stack.
-; 0x9000 is the kernel BSS start (zeroed by kernel on boot).
-mov sp, 0x9000
+; --- Read 2: head 1 (continues right after read 1) ---
+; ES:BX must point to 0xA800. Use ES=0x0A80, BX=0 to avoid
+; crossing a 64 KB segment boundary during the transfer.
+mov ax, 0x0A80
+mov es, ax
+mov ah, 0x02
+mov al, 60       ; 60 more sectors (30 KB)
+mov ch, 0
+mov cl, 1        ; CHS sector 1
+mov dh, 1        ; head 1
+mov dl, 0x80
+xor bx, bx       ; BX = 0  (ES:BX = 0x0A80:0x0000 = phys 0xA800)
+int 0x13
+jc error
+
+; Restore ES = 0 for E820 and other BIOS calls
+xor ax, ax
+mov es, ax
+
+; Stack must be above the kernel binary (.text + .rodata + .data).
+; With .data now ending at ~0xB700, 0xC000 had only ~2 KB margin which
+; is too tight for BIOS E820 calls. 0xF000 gives >6 KB of safe room.
+; This is in BSS territory, which gets zeroed by the kernel on boot.
+mov sp, 0xF000
 mov bp, sp
 
 ; clear screen option

@@ -17,8 +17,13 @@
 #define SYS_SEEK        14
 #define SYS_MMAP        15
 #define SYS_MUNMAP      16
+#define SYS_GETUID      17
+#define SYS_GETEUID      18
 
 #define MAX_SYSCALLS    32
+#define SEEK_SET        0
+#define SEEK_CUR        1
+#define SEEK_END        2
 
 typedef int (*syscall_handler_t)(unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4);
 
@@ -38,5 +43,12 @@ int sys_yield(unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned 
 int sys_sleep(unsigned int seconds, unsigned int arg2, unsigned int arg3, unsigned int arg4);
 int sys_write(unsigned int fd, unsigned int buf_ptr, unsigned int count, unsigned int arg4);
 int sys_read(unsigned int fd, unsigned int buf_ptr, unsigned int count, unsigned int arg4);
+
+int sys_getuid(unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4);
+int sys_geteuid(unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4);
+
+int sys_open(unsigned int path_ptr, unsigned int arg2, unsigned int arg3, unsigned int arg4);
+int sys_close(unsigned int fd, unsigned int arg2, unsigned int arg3, unsigned int arg4);
+int sys_seek(unsigned int fd, unsigned int offset, unsigned int whence, unsigned int arg4);
 
 #endif

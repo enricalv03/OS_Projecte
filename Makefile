@@ -173,6 +173,9 @@ $(BUILD)/languages_ca.o: kernel/commands/languages/ca.asm
 $(BUILD)/languages_es.o: kernel/commands/languages/es.asm
 	$(ASM) $(ASMFLAGS_ELF) $< -o $@
 
+$(BUILD)/tab_complete.o: kernel/commands/tab_complete.c
+	$(CC) $(CFLAGS) $< -o $@
+
 # ==============================================================================
 # Kernel library
 # ==============================================================================
@@ -208,6 +211,7 @@ KERNEL_OBJS = \
 	$(BUILD)/languages_en.o \
 	$(BUILD)/languages_ca.o \
 	$(BUILD)/languages_es.o \
+	$(BUILD)/tab_complete.o \
 	$(BUILD)/vfs.o \
 	$(BUILD)/ramfs.o \
 	$(BUILD)/diskfs.o \
