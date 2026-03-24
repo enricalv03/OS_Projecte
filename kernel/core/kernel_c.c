@@ -15,8 +15,6 @@
  * SMP + paging; enable when running under QEMU with virtio-net attached. */
 /* #include "net/virtio_net.h" */
 
-#define USER_STACK_TOP 0x80000
-
 /* -------------------------------------------------------------------------
  * Minimal user-mode syscall wrappers
  * -------------------------------------------------------------------------
@@ -63,20 +61,17 @@ static void u_sys_exit(unsigned int code) {
 /* First real ring-3 program.
  *
  * Execution flow:
- *   kernel_c_init() calls enter_user_mode() which iretd's into here.
+ *   cmd_ring3_test() calls enter_user_mode() which iretd's into here.
  *   From this point on, the CPU is in ring 3.  All access to kernel
  *   services goes through INT 0x80.
  *
- * We print a banner via sys_write, then run a tiny echo loop. */
+ * Phase 1: Direct VGA write to prove ring-3 is running, then syscall echo. */
 static void user_init(void) {
     const char banner[] =
-        "\n*** Ring-3 user_init running ***\n"
-        "[u-shell] keyboard echo (press keys):\n";
+        "\n*** Ring-3 user mode active ***\n"
+        "Type anything (echo via INT 0x80 syscalls):\n";
     u_sys_write(1, banner, sizeof(banner) - 1);
 
-    /* Non-blocking keyboard echo loop.
-     * sys_read on fd=0 returns immediately with 0 bytes if the kbd
-     * buffer is empty, so we busy-spin (acceptable for a demo). */
     char c;
     for (;;) {
         if (u_sys_read(0, &c, 1) > 0) {
@@ -84,7 +79,6 @@ static void user_init(void) {
         }
     }
 
-    /* Unreachable, but keeps the compiler happy. */
     u_sys_exit(0);
 }
 

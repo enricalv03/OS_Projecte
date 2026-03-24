@@ -26,21 +26,24 @@ syscall_handler:
   push fs
   push gs
 
-  ; Switch to kernel data segments while in the handler
+  ; Switch to kernel data segments while in the handler.
+  ; NOTE: this clobbers AX, so we must read the original register
+  ; values from the pushad frame on the stack, not from registers.
   mov ax, 0x10
   mov ds, ax
   mov es, ax
   mov fs, ax
   mov gs, ax
 
-  ; Arguments are in the *registers* the user set before INT 0x80.
-  ; pushad saved the old values on the stack, but registers still hold them,
-  ; so we can pass them directly.
-  push esi               ; arg4
-  push edx               ; arg3
-  push ecx               ; arg2
-  push ebx               ; arg1
-  push eax               ; syscall number
+  ; Read original register values from the pushad save area.
+  ; Stack layout: [esp+0]=gs [4]=fs [8]=es [12]=ds
+  ;   [16]=EDI [20]=ESI [24]=EBP [28]=ESP [32]=EBX [36]=EDX [40]=ECX [44]=EAX
+  ; Each push below shifts ESP by -4, so offsets increase by +4.
+  push dword [esp + 20]  ; arg4 = original ESI
+  push dword [esp + 40]  ; arg3 = original EDX  (+4 for 1 push above)
+  push dword [esp + 48]  ; arg2 = original ECX  (+8 for 2 pushes)
+  push dword [esp + 44]  ; arg1 = original EBX  (+12 for 3 pushes)
+  push dword [esp + 60]  ; syscall number = original EAX (+16 for 4 pushes)
 
   call syscall_handle
   add esp, 20            ; pop 5 args
