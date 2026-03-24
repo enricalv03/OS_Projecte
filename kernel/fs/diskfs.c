@@ -1,6 +1,6 @@
 #include "diskfs.h"
 #include "ramfs.h"
-#include "../drivers/block.h"
+#include "drivers/block.h"
 
 /* =============================================================================
  * diskfs_init -- Probe disk for a SimpleFS partition and register files
@@ -13,7 +13,12 @@
  * =========================================================================== */
 
 int diskfs_init(void) {
-    unsigned char sector_buf[512];
+    static unsigned char sector_buf[512];
+
+    /* Ensure block device exists (block_init may skip if no ATA drive) */
+    if (block_device_get("ata0") == 0) {
+        return -1;
+    }
 
     /* Step 1: Read superblock from sector 200 */
     if (block_read("ata0", DISKFS_START_SECTOR, 1, sector_buf) != 0) {

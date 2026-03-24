@@ -16,6 +16,7 @@ struct vfs_node* ramfs_get_vfs_root(void);
  * or -1 if not found.
  */
 struct vfs_node;
+struct vfs_dir_entry;
 int ramfs_lookup_root(const char* name, struct vfs_node** out_node);
 
 /* Add a disk-backed file to the RAMFS root directory.
@@ -51,10 +52,14 @@ int ramfs_copy_file(const char* src_path, const char* dest_path);
  *         -2 dest already exists. */
 int ramfs_move_node(const char* src_path, const char* dest_path);
 
+/* Truncate a RAM-backed file to exactly new_size bytes.
+ * Returns 0 on success, -1 on error (disk-backed or not a file). */
+int ramfs_truncate(struct vfs_node* node, unsigned int new_size);
+
 /* Remove a file or empty directory. Returns 0 on success, -1 if root, -2 if dir not empty. */
 int ramfs_remove_node(struct vfs_node* node);
-
-//int ramfs_remove_node_recursive(struct vfs_node* node);
+int ramfs_remove_node_recursive(struct vfs_node* node);
+unsigned int ramfs_count_recursive(struct vfs_node* node);
 
 /* Recursive search: find all nodes named `name` under `start_path`.
  * If start_path is "/" or NULL, searches the entire filesystem.
@@ -62,5 +67,11 @@ int ramfs_remove_node(struct vfs_node* node);
  * to retrieve the full path of each match. */
 int ramfs_find(const char* start_path, const char* name);
 const char* ramfs_find_get_result(int index);
+
+/* Fallback helpers used by VFS when vnode ops pointers are unavailable.
+ * They resolve children/listings directly from RAMFS metadata tables. */
+int ramfs_lookup_child(struct vfs_node* dir, const char* name, struct vfs_node** out_node);
+int ramfs_readdir_fallback(struct vfs_node* dir, unsigned int index, struct vfs_dir_entry* out);
+int ramfs_read_fallback(struct vfs_node* node, unsigned int offset, unsigned int size, void* buffer);
 
 #endif

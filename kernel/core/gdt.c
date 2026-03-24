@@ -1,5 +1,5 @@
 #include "gdt.h"
-#include "../lib/kstring.h"
+#include "lib/kstring.h"
 
 /* =============================================================================
  * GDT (Global Descriptor Table) and TSS Setup

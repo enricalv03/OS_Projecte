@@ -9,6 +9,7 @@ static vfs_node_t* vfs_root = 0;
 static vfs_node_t* vfs_cwd = 0;
 
 #define VFS_CWD_PATH_SIZE 64
+#define VFS_CWD_CHAIN_MAX 32
 static char vfs_cwd_path[VFS_CWD_PATH_SIZE] = "/";
 
 /* --------------------------------------------------------------------------
@@ -27,6 +28,45 @@ static int vfs_strlen(const char* s) {
 /* Path buffer for prepending '/' when path has no leading slash */
 #define VFS_PATH_BUF_SIZE 64
 static char vfs_path_buf[VFS_PATH_BUF_SIZE];
+
+/* Fill vfs_cwd_path from the vnode parent chain so it always matches vfs_cwd.
+ * If only vfs_set_cwd(dir) was used (no explicit path), the old code left
+ * vfs_cwd_path stale (often "/"). Then ls used the vnode (empty home) while
+ * write/cat used the string path (root) — empty listings and "missing" files. */
+static void vfs_sync_cwd_path_from_node(vfs_node_t* node) {
+  vfs_node_t* root = vfs_get_root();
+  if (!node || node == root) {
+    vfs_cwd_path[0] = '/';
+    vfs_cwd_path[1] = '\0';
+    return;
+  }
+
+  vfs_node_t* chain[VFS_CWD_CHAIN_MAX];
+  int depth = 0;
+  vfs_node_t* p = node;
+  while (p && p != root && depth < VFS_CWD_CHAIN_MAX) {
+    chain[depth++] = p;
+    p = p->parent;
+  }
+  if (p != root) {
+    vfs_cwd_path[0] = '/';
+    vfs_cwd_path[1] = '\0';
+    return;
+  }
+
+  int pos = 0;
+  vfs_cwd_path[pos++] = '/';
+  for (int i = depth - 1; i >= 0; i--) {
+    const char* nm = chain[i]->name;
+    if (!nm)
+      nm = "";
+    for (int j = 0; nm[j] != '\0' && pos < VFS_CWD_PATH_SIZE - 1; j++)
+      vfs_cwd_path[pos++] = nm[j];
+    if (i > 0 && pos < VFS_CWD_PATH_SIZE - 1)
+      vfs_cwd_path[pos++] = '/';
+  }
+  vfs_cwd_path[pos] = '\0';
+}
 
 /* --------------------------------------------------------------------------
  * VFS core
@@ -59,32 +99,28 @@ void vfs_set_cwd(vfs_node_t* node) {
   if (!node || node->type != 2)  /* VFS_NODE_DIR */
     return;
   vfs_cwd = node;
-  if (node == vfs_get_root())
-  {
-    vfs_cwd_path[0] = '/';
-    vfs_cwd_path[1] = '\0';
-  }
-  
+  vfs_sync_cwd_path_from_node(node);
 }
 
 void vfs_set_cwd_with_path(vfs_node_t* node, const char* path) {
-  if (!node || node->type != 2 || !path)
-  {
+  if (!node || node->type != 2) {
     return;
   }
+
+  /* Keep CWD state canonical: derive text path from the vnode chain instead of
+   * trusting a caller-provided string that may be relative, stale, or malformed.
+   * This prevents "prompt/path points to / while ls uses another directory". */
   vfs_cwd = node;
-  int i = 0;
-  while (path[i] != '\0' && i < VFS_CWD_PATH_SIZE - 1)
-  {
-    vfs_cwd_path[i] = path[i];
-    i++;
-  }
-  if (i >= VFS_CWD_PATH_SIZE)
-    i = VFS_CWD_PATH_SIZE - 1;
-  vfs_cwd_path[i] = '\0';
+  (void)path;
+  vfs_sync_cwd_path_from_node(node);
 }
 
 const char* vfs_get_cwd_path(void) {
+  /* Keep textual CWD in lockstep with the vnode CWD.
+   * Some callers depend on the string (path building), others on vfs_cwd
+   * (directory listing). If anything changed vfs_cwd without updating the
+   * string, refresh lazily here so both views stay consistent. */
+  vfs_sync_cwd_path_from_node(vfs_get_cwd());
   return vfs_cwd_path;
 }
 
@@ -138,19 +174,82 @@ int vfs_read(vfs_node_t* node,
              unsigned int offset,
              unsigned int size,
              void* buffer) {
-  if (!node || !node->ops || !node->ops->read) {
-    return -1;
+  if (!node) return -1;
+  if (node->ops && node->ops->read) {
+    return node->ops->read(node, offset, size, buffer);
   }
-  return node->ops->read(node, offset, size, buffer);
+  /* Fallback for RAMFS nodes when vnode ops pointers are missing. */
+  return ramfs_read_fallback(node, offset, size, buffer);
+}
+
+int vfs_write(vfs_node_t* node,
+              unsigned int offset,
+              unsigned int size,
+              const void* buffer) {
+  if (!node || !node->ops || !node->ops->write)
+    return -1;
+  return node->ops->write(node, offset, size, buffer);
+}
+
+vfs_node_t* vfs_create(const char* path) {
+  if (!path) return 0;
+
+  /* Check if it already exists. */
+  vfs_node_t* existing = vfs_lookup(path);
+  if (existing) return existing;
+
+  /* Find the parent directory and basename. */
+  /* Locate last '/' to split into dir + name. */
+  int len = vfs_strlen(path);
+  int sep = -1;
+  for (int i = len - 1; i >= 0; i--) {
+    if (path[i] == '/') { sep = i; break; }
+  }
+
+  const char* name;
+  char parent_path[64];
+  if (sep <= 0) {
+    /* File in root. */
+    parent_path[0] = '/'; parent_path[1] = 0;
+    name = (sep == 0) ? path + 1 : path;
+  } else {
+    int plen = sep;
+    if (plen >= 64) plen = 63;
+    for (int i = 0; i < plen; i++) parent_path[i] = path[i];
+    parent_path[plen] = 0;
+    name = path + sep + 1;
+  }
+
+  if (name[0] == 0) return 0;
+
+  /* ramfs_add_ram_file_at_path accepts the full path; use it to create
+   * an empty file. */
+  if (ramfs_add_ram_file_at_path(path, 0, 0) != 0) {
+    /* May have failed because parent dir doesn't exist — try cwd-relative. */
+    return 0;
+  }
+  (void)parent_path;
+  return vfs_lookup(path);
+}
+
+int vfs_truncate(vfs_node_t* node, unsigned int new_size) {
+  /* The only filesystem that supports truncate today is ramfs. */
+  extern int ramfs_truncate(vfs_node_t*, unsigned int);
+  return ramfs_truncate(node, new_size);
 }
 
 int vfs_readdir(vfs_node_t* dir,
                 unsigned int index,
                 vfs_dir_entry_t* out) {
-  if (!dir || dir->type != VFS_NODE_DIR || !dir->ops || !dir->ops->readdir) {
-    return -1;
+  /* Be tolerant about dir->type here so that minor struct-layout or
+   * initialization issues don't completely break directory listings.
+   * As long as a node provides a readdir implementation, we ask it. */
+  if (!dir) return -1;
+  if (dir->ops && dir->ops->readdir) {
+    return dir->ops->readdir(dir, index, out);
   }
-  return dir->ops->readdir(dir, index, out);
+  /* Fallback: resolve listing directly from RAMFS tables. */
+  return ramfs_readdir_fallback(dir, index, out);
 }
 
 int vfs_dir_entry_get_type(const vfs_dir_entry_t* entry) {
@@ -206,10 +305,16 @@ vfs_node_t* vfs_lookup(const char* path) {
     if (name[0] == 0)
       continue;
 
-    if (current->type != VFS_NODE_DIR || !current->ops || !current->ops->lookup) {
-      return 0;
+    if (current->ops && current->ops->lookup) {
+      current = current->ops->lookup(current, name);
+    } else {
+      /* Fallback: resolve child from RAMFS metadata if vnode ops are missing. */
+      vfs_node_t* next = 0;
+      if (ramfs_lookup_child(current, name, &next) != 0) {
+        return 0;
+      }
+      current = next;
     }
-    current = current->ops->lookup(current, name);
     if (!current)
       return 0;
   }

@@ -55,6 +55,20 @@ int vfs_read(vfs_node_t* node,
              unsigned int size,
              void* buffer);
 
+/* Write `size` bytes from `buffer` into `node` at `offset`.
+ * Returns bytes written, or -1 on error (e.g. read-only fs). */
+int vfs_write(vfs_node_t* node,
+              unsigned int offset,
+              unsigned int size,
+              const void* buffer);
+
+/* Create a new file at `path`.  Returns the new node or NULL on failure.
+ * If the file already exists the existing node is returned unchanged. */
+vfs_node_t* vfs_create(const char* path);
+
+/* Truncate a file to `new_size` bytes.  Returns 0 on success, -1 on error. */
+int vfs_truncate(vfs_node_t* node, unsigned int new_size);
+
 int vfs_readdir(vfs_node_t* dir,
                 unsigned int index,
                 vfs_dir_entry_t* out);

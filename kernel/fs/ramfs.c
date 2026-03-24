@@ -1,7 +1,7 @@
 #include "vfs.h"
 #include "ramfs.h"
-#include "../drivers/block.h"
-#include "../memory/heap.h"
+#include "drivers/block.h"
+#include "memory/heap.h"
 
 /* --------------------------------------------------------------------------
  * Internal RAMFS structures
@@ -86,7 +86,7 @@ static int ramfs_read(vfs_node_t* node,
     unsigned int start_sect = rnode->disk_sector + (byte_offset / 512);
     unsigned int sect_offset = byte_offset % 512;
     unsigned int bytes_read = 0;
-    unsigned char sect_buf[512];
+    static unsigned char sect_buf[512];
     char* dst = (char*)buffer;
 
     while (bytes_read < size) {
@@ -153,13 +153,87 @@ static vfs_ops_t ramfs_dir_ops = {
   ramfs_vfs_lookup /* lookup  */
 };
 
+/* --------------------------------------------------------------------------
+ * ramfs_write — write bytes to a RAM-backed file, growing it as needed.
+ * Disk-backed files are not writable (read-only view of disk data).
+ * Returns bytes written, or -1 on error.
+ * -------------------------------------------------------------------------- */
+static int ramfs_write(vfs_node_t* node,
+                       unsigned int offset,
+                       unsigned int size,
+                       const void* buffer) {
+    if (!node || !buffer || size == 0) return -1;
+
+    ramfs_node_t* rnode = (ramfs_node_t*)node->fs_private;
+    if (!rnode || rnode->type != VFS_NODE_FILE) return -1;
+    if (rnode->disk_sector > 0) return -1;  /* disk-backed files are read-only */
+
+    unsigned int new_end = offset + size;
+    if (new_end < offset) return -1;  /* overflow */
+
+    /* Grow the buffer if necessary. */
+    if (new_end > rnode->size) {
+        char* new_buf = (char*)malloc(new_end);
+        if (!new_buf) return -1;
+
+        /* Copy old content, zero-fill the gap. */
+        unsigned int old_size = rnode->size;
+        const char* old_data = rnode->data;
+        for (unsigned int i = 0; i < old_size; i++)
+            new_buf[i] = old_data[i];
+        for (unsigned int i = old_size; i < new_end; i++)
+            new_buf[i] = 0;
+
+        rnode->data  = new_buf;
+        rnode->size  = new_end;
+        node->size   = new_end;
+    }
+
+    /* Copy data into the buffer. */
+    char* dst = (char*)rnode->data + offset;
+    const char* src = (const char*)buffer;
+    for (unsigned int i = 0; i < size; i++)
+        dst[i] = src[i];
+
+    return (int)size;
+}
+
+/* --------------------------------------------------------------------------
+ * ramfs_truncate — shrink/grow a RAM-backed file to exactly `new_size` bytes.
+ * Called by O_TRUNC during open.
+ * -------------------------------------------------------------------------- */
+int ramfs_truncate(vfs_node_t* node, unsigned int new_size) {
+    if (!node) return -1;
+    ramfs_node_t* rnode = (ramfs_node_t*)node->fs_private;
+    if (!rnode || rnode->type != VFS_NODE_FILE || rnode->disk_sector > 0)
+        return -1;
+
+    if (new_size == 0) {
+        rnode->data = 0;
+        rnode->size = 0;
+        node->size  = 0;
+        return 0;
+    }
+
+    char* new_buf = (char*)malloc(new_size);
+    if (!new_buf) return -1;
+    unsigned int copy = new_size < rnode->size ? new_size : rnode->size;
+    const char* old = rnode->data;
+    for (unsigned int i = 0; i < copy; i++)   new_buf[i] = old[i];
+    for (unsigned int i = copy; i < new_size; i++) new_buf[i] = 0;
+    rnode->data = new_buf;
+    rnode->size = new_size;
+    node->size  = new_size;
+    return 0;
+}
+
 static vfs_ops_t ramfs_file_ops = {
-  0,         /* open    */
-  0,         /* close   */
+  0,           /* open    */
+  0,           /* close   */
   ramfs_read,
-  0,         /* write   */
-  0,         /* readdir */
-  0          /* lookup  */
+  ramfs_write, /* write   */
+  0,           /* readdir */
+  0            /* lookup  */
 };
 
 /* --------------------------------------------------------------------------
@@ -282,6 +356,7 @@ void ramfs_init(void) {
   ramfs_add_dir(&ramfs_root_storage, "admin");
   ramfs_node_t* home_dir = ramfs_add_dir(&ramfs_root_storage, "home");
   if (home_dir) {
+    ramfs_add_dir(home_dir, "user");     /* /home/user - default login profile */
     ramfs_add_dir(home_dir, "normal");   /* /home/normal - normal user profile */
     ramfs_add_dir(home_dir, "hacking");  /* /home/hacking - technical user profile */
   }
@@ -324,10 +399,11 @@ int ramfs_lookup_root(const char* name, vfs_node_t** out_node) {
 }
 
 int ramfs_add_ram_file_under(struct vfs_node* dir, const char* name, const char* data, unsigned int size_bytes) {
-  if (!dir || dir->type != VFS_NODE_DIR || !name || !data)
-  {
+  if (!dir || dir->type != VFS_NODE_DIR || !name)
     return -1;
-  }
+  /* Allow data==NULL only for zero-length files (e.g. device nodes) */
+  if (size_bytes > 0 && !data)
+    return -1;
   ramfs_node_t* parent = (ramfs_node_t*)dir->fs_private;
   if (!parent || parent->type != VFS_NODE_DIR)
   {
@@ -637,7 +713,7 @@ int ramfs_remove_node(vfs_node_t* node) {
 /* --------------------------------------------------------------------------
  * Remove a directory and all its contents, or a single file.
  * Returns: 0 success, -1 cannot remove root.
- * -------------------------------------------------------------------------- 
+ * -------------------------------------------------------------------------- */
 int ramfs_remove_node_recursive(vfs_node_t* node) {
   if (!node || !node->fs_private) return -1;
 
@@ -655,7 +731,33 @@ int ramfs_remove_node_recursive(vfs_node_t* node) {
     }
   }
   return ramfs_remove_node(node);
-}*/
+}
+
+/* --------------------------------------------------------------------------
+ * Count how many nodes (files + directories) live under this node.
+ * Used by rm to show how many entries will be deleted on a directory.
+ * -------------------------------------------------------------------------- */
+unsigned int ramfs_count_recursive(vfs_node_t* node) {
+  if (!node || !node->fs_private) return 0;
+
+  unsigned int total = 0;
+
+  if (node->type == VFS_NODE_DIR) {
+    vfs_dir_entry_t entry;
+    unsigned int index = 0;
+
+    while (vfs_readdir(node, index, &entry) == 0) {
+      vfs_node_t* child = node->ops->lookup(node, entry.name);
+      if (child) {
+        total += 1;                    /* count the child itself */
+        total += ramfs_count_recursive(child); /* and everything under it */
+      }
+      index++;
+    }
+  }
+
+  return total;
+}
 
 /* --------------------------------------------------------------------------
  * ramfs_find — Recursive search by exact name
@@ -667,11 +769,19 @@ int ramfs_remove_node_recursive(vfs_node_t* node) {
 static char find_results[FIND_MAX_RESULTS][FIND_PATH_MAX];
 static int  find_count;
 
+static int is_valid_ramfs_ptr(ramfs_node_t* p) {
+  if (!p) return 0;
+  if (p == &ramfs_root_storage) return 1;
+  return (p >= &ramfs_nodes[0] && p < &ramfs_nodes[RAMFS_MAX_FILES]);
+}
+
 static int is_ancestor(ramfs_node_t* node, ramfs_node_t* ancestor) {
   ramfs_node_t* cur = node;
-  while (cur) {
+  unsigned int hops = 0;
+  while (is_valid_ramfs_ptr(cur) && hops < RAMFS_MAX_FILES + 1) {
     if (cur == ancestor) return 1;
     cur = cur->parent;
+    hops++;
   }
   return 0;
 }
@@ -681,7 +791,7 @@ static void build_find_path(ramfs_node_t* rn, char* buf, int max) {
   int depth = 0;
 
   ramfs_node_t* cur = rn;
-  while (cur && cur != &ramfs_root_storage && depth < 16) {
+  while (is_valid_ramfs_ptr(cur) && cur != &ramfs_root_storage && depth < 16) {
     stack[depth++] = cur;
     cur = cur->parent;
   }
@@ -712,7 +822,10 @@ int ramfs_find(const char* start_path, const char* name) {
     start_rn = (ramfs_node_t*)sv->fs_private;
   }
 
-  for (unsigned int i = 0; i < ramfs_file_count && find_count < FIND_MAX_RESULTS; i++) {
+  unsigned int limit = ramfs_file_count;
+  if (limit > RAMFS_MAX_FILES) limit = RAMFS_MAX_FILES;
+
+  for (unsigned int i = 0; i < limit && find_count < FIND_MAX_RESULTS; i++) {
     if (ramfs_nodes[i].name[0] == 0) continue;
     if (ramfs_strcmp(ramfs_nodes[i].name, name) != 0) continue;
     if (!is_ancestor(&ramfs_nodes[i], start_rn)) continue;
@@ -726,4 +839,33 @@ int ramfs_find(const char* start_path, const char* name) {
 const char* ramfs_find_get_result(int index) {
   if (index < 0 || index >= find_count) return 0;
   return find_results[index];
+}
+
+/* --------------------------------------------------------------------------
+ * Fallback helpers for VFS when vnode ops are unavailable/corrupted.
+ * -------------------------------------------------------------------------- */
+int ramfs_lookup_child(vfs_node_t* dir, const char* name, vfs_node_t** out_node) {
+  if (!dir || !name || !out_node) return -1;
+  *out_node = 0;
+
+  ramfs_node_t* dir_rn = (ramfs_node_t*)dir->fs_private;
+  if (!dir_rn || dir_rn->type != VFS_NODE_DIR) return -1;
+
+  for (unsigned int i = 0; i < ramfs_file_count; i++) {
+    if (ramfs_nodes[i].parent != dir_rn) continue;
+    if (ramfs_nodes[i].name[0] == 0) continue;
+    if (ramfs_strcmp(ramfs_nodes[i].name, name) == 0) {
+      *out_node = &ramfs_vnodes[i];
+      return 0;
+    }
+  }
+  return -1;
+}
+
+int ramfs_readdir_fallback(vfs_node_t* dir, unsigned int index, vfs_dir_entry_t* out) {
+  return ramfs_readdir(dir, index, out);
+}
+
+int ramfs_read_fallback(vfs_node_t* node, unsigned int offset, unsigned int size, void* buffer) {
+  return ramfs_read(node, offset, size, buffer);
 }

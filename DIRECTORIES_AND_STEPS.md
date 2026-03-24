@@ -136,3 +136,11 @@ In **`ramfs_init()`** the following directories are created:
 | `kernel/commands/languages/*.asm` | mkdir/creadir, cp/copia/copiar strings in EN, CA, ES |
 | `boot/stage2.asm` | Two-read bootloader (120 sectors / 60 KB capacity) |
 | `kernel/core/kernel_c.c` | Re-mount VFS root in `kernel_c_init` |
+
+
+### NOTES - PROFESSORS:
+En un OS des de zero, quin és el millor patró per gestionar buffers de xarxa (pools estàtics vs dinàmics vs slab allocators) per evitar fragmentació en alts throughput?
+
+Com implementar un sistema eficient de zero-copy per paquets TCP/UDP sense duplicar dades entre kernel i user-space?
+
+
