@@ -173,6 +173,15 @@ parse_command:
   push esi
   push edi
 
+  ; --- TEMPORARY DEBUG: dump command_buffer contents ---
+  mov esi, dbg_prefix
+  call print_string_no_newline
+  mov esi, command_buffer
+  call print_string_no_newline
+  mov esi, dbg_suffix
+  call print_line
+  ; --- END DEBUG ---
+
   ; -----------------------------------------------------------------------
   ; PRIORITY CHECK: Always try language-switching commands in ALL languages
   ; first, so the user can ALWAYS switch back regardless of current language.
@@ -223,6 +232,10 @@ parse_command:
   jmp .done
 
 .unknown:
+  ; --- TEMPORARY DEBUG: show table pointer ---
+  mov esi, dbg_unknown_prefix
+  call print_string_no_newline
+  ; --- END DEBUG ---
   mov esi, [current_unknown_cmd]
   call print_line
 
@@ -1195,6 +1208,11 @@ handle_spawn:
 
 section .data
 spawn_disabled_msg: db 'spawn: kernel thread demo temporarily disabled', 0
+dbg_prefix: db '[DBG cmd="', 0
+dbg_suffix: db '"]', 0
+dbg_unknown_prefix: db '[NO MATCH] ', 0
+
+section .text
 
 ; ---------------------------------------------------------------------------
 ; handle_ring3: Test ring-3 user mode transition.
@@ -2932,6 +2950,8 @@ set_language_es:
   mov esi, lang_es_name
   call print_line
   ret
+
+section .data
 
 ; ---------------------------------------------------------------------------
 ; Language alias table: ALL names for the language-switching command across

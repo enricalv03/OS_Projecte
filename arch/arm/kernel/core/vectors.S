@@ -22,6 +22,7 @@
 
     .section .text.vectors
     .global  arm_vector_table
+    .balign 32
 
 arm_vector_table:
     b  _reset_handler
@@ -88,7 +89,7 @@ _svc_handler:
     add   sp, sp, #20            /* pop 5 args */
     /* Store return value (EAX equivalent) in saved r0 on stack */
     str   r0, [sp]               /* saved r0 = return value */
-    pop   {r0-r12, pc}^          /* restore and return to user mode */
+    ldmfd sp!, {r0-r12, pc}^     /* restore and return to user mode */
 
 /* ---- IRQ handler ---- */
     .global _irq_handler
@@ -98,4 +99,4 @@ _irq_handler:
     sub   lr, lr, #4
     push  {r0-r12, lr}
     bl    arm_irq_dispatch
-    pop   {r0-r12, pc}^          /* restore registers + CPSR, return to interrupted mode */
+    ldmfd sp!, {r0-r12, pc}^     /* restore registers + CPSR, return to interrupted mode */

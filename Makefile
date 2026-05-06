@@ -13,6 +13,7 @@
 
 # --- Toolchain ---
 CC      = i686-elf-gcc
+CXX     = i686-elf-g++
 LD      = i686-elf-ld
 ASM     = nasm
 OBJCOPY = i686-elf-objcopy
@@ -39,6 +40,12 @@ CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
          -nostartfiles -nodefaultlibs -Wall -Wextra \
          -Ikernel -I$(KERNELDIR) \
          -c
+
+CXXFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
+           -nostartfiles -nodefaultlibs -Wall -Wextra \
+           -fno-exceptions -fno-rtti -fno-threadsafe-statics -fno-use-cxa-atexit \
+           -Ikernel -I$(KERNELDIR) \
+           -c
 
 ASMFLAGS_BIN = -f bin
 ASMFLAGS_ELF = -f elf32
@@ -140,6 +147,20 @@ $(BUILD)/fb.o: $(KERNELDIR)/drivers/fb.c
 
 $(BUILD)/compositor.o: kernel/gfx/compositor.c
 	$(CC) $(CFLAGS) $< -o $@
+
+# PS/2 mouse driver
+$(BUILD)/mouse.o: $(KERNELDIR)/drivers/mouse.c
+	$(CC) $(CFLAGS) $< -o $@
+
+# ==============================================================================
+# C++ freestanding runtime
+# ==============================================================================
+
+$(BUILD)/cxxabi.o: kernel/cxxrt/icxxabi.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(BUILD)/cxx_new.o: kernel/cxxrt/new.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 # ==============================================================================
 # Memory management
@@ -310,6 +331,9 @@ KERNEL_OBJS = \
 	$(BUILD)/ata_test.o \
 	$(BUILD)/fb.o \
 	$(BUILD)/compositor.o \
+	$(BUILD)/mouse.o \
+	$(BUILD)/cxxabi.o \
+	$(BUILD)/cxx_new.o \
 	$(BUILD)/process.o \
 	$(BUILD)/scheduler.o \
 	$(BUILD)/context_switch.o \
@@ -377,7 +401,7 @@ $(ARM_BUILD):
 	mkdir -p $(ARM_BUILD)
 
 ARM_CFLAGS_INC = $(ARM_CFLAGS) -I$(ARM_KERN_DIR) -I$(ARM_KERN_DIR)/core \
-                 -I$(ARM_KERN_DIR)/memory
+                 -I$(ARM_KERN_DIR)/memory -Iarch/x86/kernel
 
 $(ARM_BUILD)/arm_boot.o: $(ARM_ARCH_DIR)/boot/boot.S | $(ARM_BUILD)
 	$(ARM_CC) $(ARM_CFLAGS_INC) -x assembler-with-cpp $< -o $@
@@ -403,6 +427,18 @@ $(ARM_BUILD)/arm_vmm.o: $(ARM_KERN_DIR)/memory/arm_vmm.c | $(ARM_BUILD)
 $(ARM_BUILD)/arm_ctx.o: $(ARM_KERN_DIR)/process/context_switch_arm.S | $(ARM_BUILD)
 	$(ARM_CC) $(ARM_CFLAGS_INC) -x assembler-with-cpp $< -o $@
 
+$(ARM_BUILD)/arm_scheduler.o: kernel/sched/scheduler.c | $(ARM_BUILD)
+	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
+
+$(ARM_BUILD)/arm_node.o: kernel/node.c | $(ARM_BUILD)
+	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
+
+$(ARM_BUILD)/arm_kstring.o: kernel/lib/kstring.c | $(ARM_BUILD)
+	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
+
+$(ARM_BUILD)/arm_sched_compat.o: $(ARM_KERN_DIR)/core/sched_compat.c | $(ARM_BUILD)
+	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
+
 ARM_OBJS = $(ARM_BUILD)/arm_boot.o \
            $(ARM_BUILD)/arm_vectors.o \
            $(ARM_BUILD)/arm_arch.o \
@@ -410,7 +446,11 @@ ARM_OBJS = $(ARM_BUILD)/arm_boot.o \
            $(ARM_BUILD)/arm_irq.o \
            $(ARM_BUILD)/arm_pmm.o \
            $(ARM_BUILD)/arm_vmm.o \
-           $(ARM_BUILD)/arm_ctx.o
+           $(ARM_BUILD)/arm_ctx.o \
+           $(ARM_BUILD)/arm_scheduler.o \
+           $(ARM_BUILD)/arm_node.o \
+           $(ARM_BUILD)/arm_kstring.o \
+           $(ARM_BUILD)/arm_sched_compat.o
 
 $(ARM_BUILD)/kernel.elf: $(ARM_OBJS)
 	$(ARM_LD) -T $(ARM_KERN_DIR)/linker.ld $(ARM_OBJS) -o $@
@@ -418,7 +458,7 @@ $(ARM_BUILD)/kernel.elf: $(ARM_OBJS)
 run-arm: $(ARM_BUILD)/kernel.elf
 	$(ARM_QEMU) -M virt -cpu cortex-a15 -m 128M \
 	            -kernel $(ARM_BUILD)/kernel.elf \
-	            -serial stdio -display none \
+	            -serial mon:stdio -monitor none -display none \
 	            -nographic
 
 # ==============================================================================

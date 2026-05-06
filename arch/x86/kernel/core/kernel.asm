@@ -41,10 +41,14 @@ extern process_get_uid
 extern vfs_get_cwd_path
 extern tab_complete
 extern tab_reset
+extern mouse_irq_handler
+extern mouse_init
 
-; BSS boundary symbols from linker.ld
+; Linker symbols
 extern __bss_start
 extern __bss_end
+extern __init_array_start
+extern __init_array_end
 
 global start
 start:
@@ -287,6 +291,17 @@ call set_idt_entry_user
 ; Initialize C subsystems: heap, scheduler, processes, syscalls, block I/O
 ; This MUST complete before STI so scheduler_tick() has valid state.
 call kernel_c_init
+
+; Wire IRQ12 (mouse) → interrupt vector 44
+mov eax, 44
+mov ebx, mouse_interrupt
+call set_idt_entry
+
+; Initialize PS/2 mouse (also unmasks IRQ12 + cascade on PIC)
+call mouse_init
+
+; Invoke C++ global constructors
+call _init_cxx
 
 ; =========================================================================
 ; NOW safe to enable interrupts -- scheduler is initialized
@@ -830,6 +845,36 @@ clear_input_line:
   pop ecx
   pop eax
   ret
+
+; ---------------------------------------------------------------------------
+; Mouse IRQ12 handler (wrapper around C mouse_irq_handler)
+; ---------------------------------------------------------------------------
+global mouse_interrupt
+mouse_interrupt:
+    pusha
+    call mouse_irq_handler
+    popa
+    iret
+
+; ---------------------------------------------------------------------------
+; _init_cxx: Invoke C++ global constructors from .init_array
+; ---------------------------------------------------------------------------
+global _init_cxx
+_init_cxx:
+    push ebx
+    push esi
+    mov esi, __init_array_start
+.cxx_loop:
+    cmp esi, __init_array_end
+    jge .cxx_done
+    mov eax, [esi]
+    call eax
+    add esi, 4
+    jmp .cxx_loop
+.cxx_done:
+    pop esi
+    pop ebx
+    ret
 
 kernel_main:
     ; Kernel main loop - halt forever (arch-specific)

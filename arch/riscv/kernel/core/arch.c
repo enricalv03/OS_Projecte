@@ -39,3 +39,8 @@ void arch_timer_init(unsigned int ticks_per_second) {
 unsigned int arch_timer_get_ticks(void) {
     return riscv_ticks;
 }
+
+void arch_send_ipi(unsigned int dest_node_id) {
+    (void)dest_node_id;
+    /* TODO: send software interrupt via platform IPI mechanism (e.g. SBI). */
+}

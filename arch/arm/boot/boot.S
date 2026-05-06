@@ -19,11 +19,24 @@
     .type    _start, %function
 
 _start:
-    /* Switch to Supervisor mode (SVC) with IRQ+FIQ disabled.
-     * CPSR[4:0] = 10011 = SVC  |  CPSR[7]=I  |  CPSR[6]=F */
+    /* Enter Supervisor mode (SVC) with IRQ/FIQ/abort masked.
+     * CPSR[4:0] = 10011 (SVC), I/F/A bits set. */
     cpsid aif, #0x13
 
-    /* Set up kernel stack */
+    /* Initialise banked exception stacks BEFORE enabling interrupts.
+     * Without a valid IRQ-mode SP, the first IRQ push corrupts memory. */
+    cpsid aif, #0x12            /* IRQ mode */
+    ldr   sp, =0x400FE000       /* IRQ stack top */
+
+    cpsid aif, #0x17            /* Abort mode */
+    ldr   sp, =0x400FD000       /* Abort stack top */
+
+    cpsid aif, #0x1B            /* Undefined mode */
+    ldr   sp, =0x400FC000       /* Undef stack top */
+
+    cpsid aif, #0x13            /* Back to SVC mode */
+
+    /* Set up SVC/kernel stack */
     ldr   sp, =0x40100000
 
     /* Zero BSS (__bss_start / __bss_end are defined by linker.ld) */

@@ -13,3 +13,4 @@ void arch_halt(void) {
 void arch_idle(void) { arch_enable_interrupts(); arch_halt(); }
 void arch_timer_init(unsigned int ticks_per_second) { (void)ticks_per_second; }
 unsigned int arch_timer_get_ticks(void) { return 0; }
+void arch_send_ipi(unsigned int dest_node_id) { (void)dest_node_id; }
