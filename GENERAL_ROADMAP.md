@@ -116,7 +116,9 @@ tests/
 - [ ] Implement robust context save/restore checks.
 - [x] Integrate ARM timer IRQ with shared `scheduler_tick()` (initial compatibility mode).
 - [x] Link ARM build with shared scheduler core (`scheduler.c` + `node.c`) in QEMU path.
-- [ ] Replace ARM scheduler compatibility stubs with full process/context implementation.
+- [x] Replace ARM scheduler compatibility stubs with full process/context implementation (early bring-up subset: sleep/wake + signal stubs + non-weak context switch).
+- [x] Bring up first runnable ARM kernel thread (`process_create_kernel_thread`) with cooperative yields.
+- [x] Validate short-lived ARM thread lifecycle (`spawn -> run -> process_exit -> reap -> slot reuse`) under scheduler load.
 - [ ] Add scheduler policy abstraction layer.
 - [ ] Keep round-robin as baseline policy.
 - [ ] Add priority scheduler experimental mode.
@@ -125,8 +127,8 @@ tests/
 - [ ] Add kernel threads API.
 - [ ] Add init process contract.
 - [ ] Add process states audit (`new`, `ready`, `running`, `blocked`, `zombie`).
-- [ ] Implement wait queues foundation.
-- [ ] Implement pipe IPC baseline.
+- [x] Implement wait queues foundation.
+- [x] Implement pipe IPC baseline.
 - [ ] Implement message queue IPC baseline.
 - [ ] Implement signal delivery baseline.
 - [ ] Add process debugger command set.

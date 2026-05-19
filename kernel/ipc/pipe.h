@@ -12,16 +12,18 @@
  * =========================================================================== */
 
 #include "fs/vfs.h"
+#include "sched/wait_queue.h"
 
 #define PIPE_BUF_SIZE   4096   /* ring buffer capacity in bytes (power of 2)  */
 #define PIPE_BUF_MASK   (PIPE_BUF_SIZE - 1)
-
 typedef struct {
     unsigned char buf[PIPE_BUF_SIZE];
     volatile unsigned int read_pos;   /* consumer index  */
     volatile unsigned int write_pos;  /* producer index  */
     unsigned int ref_read;            /* 1 if read-end is open  */
     unsigned int ref_write;           /* 1 if write-end is open */
+    wait_queue_t read_waiters;
+    wait_queue_t write_waiters;
 
     vfs_node_t read_node;
     vfs_node_t write_node;

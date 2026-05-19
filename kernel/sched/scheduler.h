@@ -24,8 +24,11 @@ void scheduler_boost(void);
 
 // Blocked process management
 void scheduler_block_current(void);
+void scheduler_block_current_sleep_until(unsigned int wake_tick);
+void scheduler_block_current_waitpid(unsigned int child_pid);
 void scheduler_wake_sleepers(unsigned int current_ticks);
 void scheduler_wake_parent(unsigned int child_pid);
+int scheduler_wake_process(unsigned int pid);
 
 // Statistics
 unsigned int scheduler_get_load(void);

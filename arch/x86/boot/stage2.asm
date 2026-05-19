@@ -1,6 +1,15 @@
 [bits 16]
 org 0x1000 ; Now we're loaded at 0x1000
 
+; Move the stack above the kernel load area BEFORE any disk reads.
+; The kernel is loaded to 0x3000-0x1A3FF, so stack at phys 0x8FFFE is safe.
+; Without this, the boot stack at 0x0000:0x8000 corrupts kernel bytes at
+; 0x7FFA-0x7FFF when INT 13h pushes FLAGS/CS/IP during Read 2 and Read 3.
+mov ax, 0x8000
+mov ss, ax
+mov sp, 0xFFFE
+mov bp, sp
+
 ; Print stage2 loaded message
 mov si, stage2_msg
 call print_string
@@ -12,11 +21,12 @@ call print_string
 call delay
 
 ; Load kernel from disk to 0x3000.
-; QEMU CHS geometry is 63 sectors/track. We load across tracks/heads:
+; QEMU hard-drive geometry: 16 heads, 63 sectors/track.
+; CHS-to-LBA: LBA = (C*16 + H)*63 + (S - 1)
 ;   Read 1: 60 sectors from C0/H0/S4  -> LBA   3..62   -> 0x3000
 ;   Read 2: 63 sectors from C0/H1/S1  -> LBA  63..125  -> 0xA800
-;   Read 3: 63 sectors from C1/H0/S1  -> LBA 126..188  -> 0x12600
-; Total capacity: 186 sectors (~93 KB), enough for current kernel growth.
+;   Read 3: 63 sectors from C0/H2/S1  -> LBA 126..188  -> 0x12600
+; Total capacity: 186 sectors (~93 KB), enough for current kernel (~72 KB).
 
 ; --- Read 1: head 0 ---
 mov ah, 0x02
@@ -44,15 +54,15 @@ xor bx, bx       ; BX = 0  (ES:BX = 0x0A80:0x0000 = phys 0xA800)
 int 0x13
 jc error
 
-; --- Read 3: next cylinder/head ---
+; --- Read 3: head 2 ---
 ; Continue at physical 0x12600 (0x3000 + (60+63)*512).
 mov ax, 0x1260
 mov es, ax
 mov ah, 0x02
 mov al, 63
-mov ch, 1
+mov ch, 0        ; cylinder 0 (NOT cylinder 1!)
 mov cl, 1
-mov dh, 0
+mov dh, 2        ; head 2
 mov dl, 0x80
 xor bx, bx       ; ES:BX = 0x1260:0 = phys 0x12600
 int 0x13
@@ -62,12 +72,7 @@ jc error
 xor ax, ax
 mov es, ax
 
-; Keep real-mode stack far away from loaded kernel image.
-; Use SS:SP = 0x8000:0xFFFE (phys ~0x8FFFE), safely above kernel load area.
-mov ax, 0x8000
-mov ss, ax
-mov sp, 0xFFFE
-mov bp, sp
+; Stack already set above kernel load area at the top of stage2.
 
 ; clear screen option
 ; mov ah, 0x0

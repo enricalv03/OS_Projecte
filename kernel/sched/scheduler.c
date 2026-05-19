@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "process.h"
+#include "wait_queue.h"
 #include "lib/kstring.h"
 #include "node.h"
 #include "arch.h"
@@ -11,7 +12,10 @@ static pcb_t* mlfq_queues[MLFQ_QUEUES];
 static unsigned int queue_sizes[MLFQ_QUEUES];
 
 static pcb_t* cfs_list = 0;
-static pcb_t* blocked_list = 0;   /* Singly-linked list of blocked processes */
+/* Blocked queues split by wait reason. */
+static wait_queue_t blocked_sleep_q;
+static wait_queue_t blocked_waitpid_q;
+static wait_queue_t blocked_misc_q;
 
 /* scheduler_ticks and current_running are now stored in the per-node
  * kernel_node_t (node.h).  Local aliases used during the transition so the
@@ -37,7 +41,9 @@ void scheduler_init(void) {
   memset(mlfq_queues, 0, sizeof(mlfq_queues));
   memset(queue_sizes, 0, sizeof(queue_sizes));
   cfs_list = 0;
-  blocked_list = 0;
+  wait_queue_init(&blocked_sleep_q);
+  wait_queue_init(&blocked_waitpid_q);
+  wait_queue_init(&blocked_misc_q);
   last_boost = 0;
   /* ticks and current are owned by node0 and already zero-initialised. */
 }
@@ -271,22 +277,7 @@ void scheduler_set_current(pcb_t* process) {
  * Blocked process management
  * -------------------------------------------------------------------------- */
 
-/* Block the current running process. It is removed from the run queue
- * and placed on the blocked list. The caller must set the process state
- * and sleep_until/waiting_for_pid fields BEFORE calling this. */
-void scheduler_block_current(void) {
-  if (!current_running) return;
-
-  pcb_t* proc = current_running;
-  proc->state = PROCESS_STATE_BLOCKED;
-
-  /* Add to blocked list (simple singly-linked via next) */
-  proc->next = blocked_list;
-  blocked_list = proc;
-
-  /* Clear current and schedule the next process */
-  current_running = 0;
-
+static void scheduler_reschedule_from_block(pcb_t* blocked_proc) {
   pcb_t* next = scheduler_next();
   if (!next) {
     next = process_get_by_pid(0);  /* Run kernel when nothing else is ready */
@@ -294,16 +285,50 @@ void scheduler_block_current(void) {
   if (next) {
     next->state = PROCESS_STATE_RUNNING;
     current_running = next;
-    context_switch(proc, next);
+    context_switch(blocked_proc, next);
   } else {
-    proc->state = PROCESS_STATE_RUNNING;
-    current_running = proc;
+    blocked_proc->state = PROCESS_STATE_RUNNING;
+    current_running = blocked_proc;
   }
+}
+
+static void scheduler_block_current_on_queue(wait_queue_t* q) {
+  if (!current_running) return;
+
+  pcb_t* proc = current_running;
+  proc->state = PROCESS_STATE_BLOCKED;
+  wait_queue_enqueue_unique(q, proc);
+
+  /* Clear current and schedule the next process. */
+  current_running = 0;
+  scheduler_reschedule_from_block(proc);
+}
+
+/* Legacy generic block entry (future IPC wait channels can use this). */
+void scheduler_block_current(void) {
+  if (!current_running) return;
+  current_running->sleep_until = 0;
+  current_running->waiting_for_pid = 0;
+  scheduler_block_current_on_queue(&blocked_misc_q);
+}
+
+void scheduler_block_current_sleep_until(unsigned int wake_tick) {
+  if (!current_running) return;
+  current_running->sleep_until = wake_tick;
+  current_running->waiting_for_pid = 0;
+  scheduler_block_current_on_queue(&blocked_sleep_q);
+}
+
+void scheduler_block_current_waitpid(unsigned int child_pid) {
+  if (!current_running) return;
+  current_running->sleep_until = 0;
+  current_running->waiting_for_pid = child_pid;
+  scheduler_block_current_on_queue(&blocked_waitpid_q);
 }
 
 /* Check all sleeping processes and wake any whose timer has expired. */
 void scheduler_wake_sleepers(unsigned int current_ticks) {
-  pcb_t** pp = &blocked_list;
+  pcb_t** pp = &blocked_sleep_q.head;
   while (*pp) {
     pcb_t* p = *pp;
     if (p->sleep_until > 0 && current_ticks >= p->sleep_until) {
@@ -322,7 +347,7 @@ void scheduler_wake_sleepers(unsigned int current_ticks) {
 
 /* Wake a parent process that is waiting for a specific child PID. */
 void scheduler_wake_parent(unsigned int child_pid) {
-  pcb_t** pp = &blocked_list;
+  pcb_t** pp = &blocked_waitpid_q.head;
   while (*pp) {
     pcb_t* p = *pp;
     if (p->waiting_for_pid == child_pid) {
@@ -337,6 +362,27 @@ void scheduler_wake_parent(unsigned int child_pid) {
     }
     pp = &((*pp)->next);
   }
+}
+
+static int scheduler_wake_pid_from_queue(wait_queue_t* q, unsigned int pid) {
+  pcb_t* p = wait_queue_remove_pid(q, pid);
+  if (p) {
+    p->sleep_until = 0;
+    p->waiting_for_pid = 0;
+    p->state = PROCESS_STATE_READY;
+    scheduler_enqueue(p);
+    return 1;
+  }
+  return 0;
+}
+
+int scheduler_wake_process(unsigned int pid) {
+  if (scheduler_wake_pid_from_queue(&blocked_sleep_q, pid) ||
+      scheduler_wake_pid_from_queue(&blocked_waitpid_q, pid) ||
+      scheduler_wake_pid_from_queue(&blocked_misc_q, pid)) {
+    return 0;
+  }
+  return -1;
 }
 
 /* --------------------------------------------------------------------------
@@ -393,10 +439,9 @@ void scheduler_process_messages(void) {
                 scheduler_handle_migrate(msg.data[0]);
                 break;
             case NODE_MSG_WAKE: {
-                pcb_t* p = process_get_by_pid(msg.data[0]);
-                if (p && p->state == PROCESS_STATE_BLOCKED) {
-                    p->state = PROCESS_STATE_READY;
-                    scheduler_enqueue(p);
+                unsigned int pid = msg.data[0];
+                if (scheduler_wake_process(pid) == 0) {
+                    break;
                 }
                 break;
             }

@@ -173,15 +173,6 @@ parse_command:
   push esi
   push edi
 
-  ; --- TEMPORARY DEBUG: dump command_buffer contents ---
-  mov esi, dbg_prefix
-  call print_string_no_newline
-  mov esi, command_buffer
-  call print_string_no_newline
-  mov esi, dbg_suffix
-  call print_line
-  ; --- END DEBUG ---
-
   ; -----------------------------------------------------------------------
   ; PRIORITY CHECK: Always try language-switching commands in ALL languages
   ; first, so the user can ALWAYS switch back regardless of current language.
@@ -207,7 +198,7 @@ parse_command:
   jmp .done
 
   ; -----------------------------------------------------------------------
-  ; Normal command dispatch: check the current language's command table.
+  ; Normal command dispatch: check the current language's command table first.
   ; -----------------------------------------------------------------------
 .try_normal:
   mov ebx, [current_command_table]
@@ -232,10 +223,27 @@ parse_command:
   jmp .done
 
 .unknown:
-  ; --- TEMPORARY DEBUG: show table pointer ---
-  mov esi, dbg_unknown_prefix
-  call print_string_no_newline
-  ; --- END DEBUG ---
+  ; -----------------------------------------------------------------------
+  ; Fallback dispatch: accept command names from all languages.
+  ; Keeps shell usable when language state/input diverges.
+  ; -----------------------------------------------------------------------
+  mov ebx, command_alias_table
+
+.alias_next_entry:
+  mov edi, [ebx]
+  test edi, edi
+  je .really_unknown
+
+  mov edx, [ebx + 4]
+  mov esi, command_buffer
+  call strcmp
+  cmp eax, 1
+  je .call_handler
+
+  add ebx, 8
+  jmp .alias_next_entry
+
+.really_unknown:
   mov esi, [current_unknown_cmd]
   call print_line
 
@@ -1208,9 +1216,6 @@ handle_spawn:
 
 section .data
 spawn_disabled_msg: db 'spawn: kernel thread demo temporarily disabled', 0
-dbg_prefix: db '[DBG cmd="', 0
-dbg_suffix: db '"]', 0
-dbg_unknown_prefix: db '[NO MATCH] ', 0
 
 section .text
 
@@ -2966,6 +2971,104 @@ language_alias_table:
   dd cmd_language_es    ; "idioma"    (Spanish)
   dd lang_alias_lang    ; "lang"      (universal shortcut)
   dd 0                  ; end sentinel
+
+; ---------------------------------------------------------------------------
+; Cross-language command aliases.
+; Any alias here is accepted independently of the currently selected language.
+; This improves UX when users mix command names across EN/CA/ES.
+; ---------------------------------------------------------------------------
+command_alias_table:
+  dd cmd_help_en, handle_help
+  dd cmd_help_ca, handle_help
+  dd cmd_help_es, handle_help
+  dd cmd_clear_en, handle_clear
+  dd cmd_clear_ca, handle_clear
+  dd cmd_clear_es, handle_clear
+  dd cmd_ls_en, handle_ls
+  dd cmd_ls_ca, handle_ls
+  dd cmd_ls_es, handle_ls
+  dd cmd_cat_en, handle_cat
+  dd cmd_cat_ca, handle_cat
+  dd cmd_cat_es, handle_cat
+  dd cmd_write_en, handle_write
+  dd cmd_write_ca, handle_write
+  dd cmd_write_es, handle_write
+  dd cmd_mkdir_en, handle_mkdir
+  dd cmd_mkdir_ca, handle_mkdir
+  dd cmd_mkdir_es, handle_mkdir
+  dd cmd_cp_en, handle_cp
+  dd cmd_cp_ca, handle_cp
+  dd cmd_cp_es, handle_cp
+  dd cmd_mv_en, handle_mv
+  dd cmd_mv_ca, handle_mv
+  dd cmd_mv_es, handle_mv
+  dd cmd_rm_en, handle_rm
+  dd cmd_rm_ca, handle_rm
+  dd cmd_rm_es, handle_rm
+  dd cmd_find_en, handle_find
+  dd cmd_find_ca, handle_find
+  dd cmd_find_es, handle_find
+  dd cmd_go_en, handle_go
+  dd cmd_go_ca, handle_go
+  dd cmd_go_es, handle_go
+  dd cmd_echo_en, handle_echo
+  dd cmd_echo_ca, handle_echo
+  dd cmd_echo_es, handle_echo
+  dd cmd_uptime_en, handle_uptime
+  dd cmd_uptime_ca, handle_uptime
+  dd cmd_uptime_es, handle_uptime
+  dd cmd_ps_en, handle_ps
+  dd cmd_ps_ca, handle_ps
+  dd cmd_ps_es, handle_ps
+  dd cmd_whoami_en, handle_whoami
+  dd cmd_whoami_ca, handle_whoami
+  dd cmd_whoami_es, handle_whoami
+  dd cmd_pwd_en, handle_pwd
+  dd cmd_pwd_ca, handle_pwd
+  dd cmd_pwd_es, handle_pwd
+  dd cmd_touch_en, handle_touch
+  dd cmd_touch_ca, handle_touch
+  dd cmd_touch_es, handle_touch
+  dd cmd_sysinfo_en, handle_sysinfo
+  dd cmd_sysinfo_ca, handle_sysinfo
+  dd cmd_sysinfo_es, handle_sysinfo
+  dd cmd_hostname_en, handle_hostname
+  dd cmd_hostname_ca, handle_hostname
+  dd cmd_hostname_es, handle_hostname
+  dd cmd_head_en, handle_head
+  dd cmd_head_ca, handle_head
+  dd cmd_head_es, handle_head
+  dd cmd_wc_en, handle_wc
+  dd cmd_wc_ca, handle_wc
+  dd cmd_wc_es, handle_wc
+  dd cmd_become_en, handle_become
+  dd cmd_become_ca, handle_become
+  dd cmd_become_es, handle_become
+  dd cmd_bc_en, handle_become
+  dd cmd_bc_ca, handle_become
+  dd cmd_bc_es, handle_become
+  dd cmd_ring3_en, handle_ring3
+  dd cmd_ring3_ca, handle_ring3
+  dd cmd_ring3_es, handle_ring3
+  dd cmd_alloc_en, handle_alloc
+  dd cmd_alloc_ca, handle_alloc
+  dd cmd_alloc_es, handle_alloc
+  dd cmd_memstat_en, handle_memstat
+  dd cmd_memstat_ca, handle_memstat
+  dd cmd_memstat_es, handle_memstat
+  dd cmd_free_en, handle_free
+  dd cmd_free_ca, handle_free
+  dd cmd_free_es, handle_free
+  dd cmd_disk_en, handle_disk
+  dd cmd_disk_ca, handle_disk
+  dd cmd_disk_es, handle_disk
+  dd cmd_spawn_en, handle_spawn
+  dd cmd_spawn_ca, handle_spawn
+  dd cmd_spawn_es, handle_spawn
+  dd cmd_panic_en, handle_panic
+  dd cmd_panic_ca, handle_panic
+  dd cmd_panic_es, handle_panic
+  dd 0, 0
 
 ; Command tables for each language
 command_table_en:

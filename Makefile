@@ -18,6 +18,7 @@ LD      = i686-elf-ld
 ASM     = nasm
 OBJCOPY = i686-elf-objcopy
 QEMU    = qemu-system-x86_64
+QEMU_DISPLAY_OPTS ?= -display cocoa,full-screen=on,zoom-to-fit=on
 
 # --- Architecture selection ---
 # For now we only build the x86 kernel, but the layout is ready
@@ -238,6 +239,9 @@ $(BUILD)/process.o: kernel/sched/process.c
 $(BUILD)/scheduler.o: kernel/sched/scheduler.c
 	$(CC) $(CFLAGS) $< -o $@
 
+$(BUILD)/wait_queue.o: kernel/sched/wait_queue.c
+	$(CC) $(CFLAGS) $< -o $@
+
 $(BUILD)/context_switch.o: $(KERNELDIR)/process/context_switch.asm
 	$(ASM) $(ASMFLAGS_ELF) $< -o $@
 
@@ -336,6 +340,7 @@ KERNEL_OBJS = \
 	$(BUILD)/cxx_new.o \
 	$(BUILD)/process.o \
 	$(BUILD)/scheduler.o \
+	$(BUILD)/wait_queue.o \
 	$(BUILD)/context_switch.o \
 	$(BUILD)/syscall.o \
 	$(BUILD)/syscall_asm.o
@@ -367,7 +372,7 @@ $(BUILD)/disk.img: $(BUILD)/boot.bin $(BUILD)/stage2.bin $(BUILD)/kernel.bin
 # ==============================================================================
 
 run: $(BUILD)/disk.img
-	$(QEMU) -drive format=raw,file=$(BUILD)/disk.img
+	$(QEMU) $(QEMU_DISPLAY_OPTS) -drive format=raw,file=$(BUILD)/disk.img
 
 debug: $(BUILD)/disk.img
 	$(QEMU) -drive format=raw,file=$(BUILD)/disk.img -s -S &
@@ -430,6 +435,9 @@ $(ARM_BUILD)/arm_ctx.o: $(ARM_KERN_DIR)/process/context_switch_arm.S | $(ARM_BUI
 $(ARM_BUILD)/arm_scheduler.o: kernel/sched/scheduler.c | $(ARM_BUILD)
 	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
 
+$(ARM_BUILD)/arm_wait_queue.o: kernel/sched/wait_queue.c | $(ARM_BUILD)
+	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
+
 $(ARM_BUILD)/arm_node.o: kernel/node.c | $(ARM_BUILD)
 	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
 
@@ -437,6 +445,9 @@ $(ARM_BUILD)/arm_kstring.o: kernel/lib/kstring.c | $(ARM_BUILD)
 	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
 
 $(ARM_BUILD)/arm_sched_compat.o: $(ARM_KERN_DIR)/core/sched_compat.c | $(ARM_BUILD)
+	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
+
+$(ARM_BUILD)/arm_process_min.o: $(ARM_ARCH_DIR)/core/arm_process_min.c | $(ARM_BUILD)
 	$(ARM_CC) $(ARM_CFLAGS_INC) $< -o $@
 
 ARM_OBJS = $(ARM_BUILD)/arm_boot.o \
@@ -448,9 +459,11 @@ ARM_OBJS = $(ARM_BUILD)/arm_boot.o \
            $(ARM_BUILD)/arm_vmm.o \
            $(ARM_BUILD)/arm_ctx.o \
            $(ARM_BUILD)/arm_scheduler.o \
+           $(ARM_BUILD)/arm_wait_queue.o \
            $(ARM_BUILD)/arm_node.o \
            $(ARM_BUILD)/arm_kstring.o \
-           $(ARM_BUILD)/arm_sched_compat.o
+           $(ARM_BUILD)/arm_sched_compat.o \
+           $(ARM_BUILD)/arm_process_min.o
 
 $(ARM_BUILD)/kernel.elf: $(ARM_OBJS)
 	$(ARM_LD) -T $(ARM_KERN_DIR)/linker.ld $(ARM_OBJS) -o $@
@@ -468,6 +481,6 @@ run-arm: $(ARM_BUILD)/kernel.elf
 all: $(BUILD) $(BUILD)/disk.img
 
 clean:
-	rm -f $(BUILD)/*
+	rm -rf $(BUILD)
 
 .PHONY: all run debug clean run-arm

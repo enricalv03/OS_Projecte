@@ -207,9 +207,8 @@ int sys_wait(unsigned int pid, unsigned int status_ptr,
             return (int)pid;
         }
 
-        /* Otherwise, block until child exits */
-        current->waiting_for_pid = pid;
-        scheduler_block_current();
+        /* Otherwise, block until child exits. */
+        scheduler_block_current_waitpid(pid);
 
         /* We've been woken up -- the child should be a zombie now */
         child = process_get_by_pid(pid);
@@ -276,10 +275,8 @@ int sys_sleep(unsigned int seconds, unsigned int arg2,
     }
 
     unsigned int now = arch_timer_get_ticks();
-    current->sleep_until = now + (seconds * TICKS_PER_SECOND);
-
-    /* Block current process -- scheduler will wake us */
-    scheduler_block_current();
+    /* Block on sleep queue -- scheduler wakes us when tick target is reached. */
+    scheduler_block_current_sleep_until(now + (seconds * TICKS_PER_SECOND));
 
     return 0;
 }
@@ -430,6 +427,16 @@ static pcb_t* syscall_current_pcb(void) {
     return pcb;
 }
 
+static void syscall_pipe_retain_if_needed(vfs_node_t* node) {
+    if (!node || !node->fs_private) return;
+    pipe_t* p = (pipe_t*)node->fs_private;
+    if (node == &p->read_node) {
+        p->ref_read++;
+    } else if (node == &p->write_node) {
+        p->ref_write++;
+    }
+}
+
 int sys_open(unsigned int path_ptr, unsigned int flags, unsigned int arg3, unsigned int arg4) {
     (void)arg3; (void)arg4;
     pcb_t* pcb = syscall_current_pcb();
@@ -478,6 +485,10 @@ int sys_close(unsigned int fd, unsigned int arg2, unsigned int arg3, unsigned in
         return -1;
     }
     
+    vfs_node_t* node = (vfs_node_t*)pcb->open_files[fd];
+    if (node && node->ops && node->ops->close) {
+        node->ops->close(node);
+    }
     pcb->open_files[fd] = 0;
     pcb->open_file_offsets[fd] = 0;
 
@@ -575,8 +586,10 @@ int sys_dup(unsigned int oldfd, unsigned int arg2,
     if (oldfd >= MAX_OPEN_FILES || !pcb->open_files[oldfd]) return -1;
     for (unsigned int fd = 0; fd < MAX_OPEN_FILES; fd++) {
         if (!pcb->open_files[fd]) {
-            pcb->open_files[fd]        = pcb->open_files[oldfd];
+            vfs_node_t* node = (vfs_node_t*)pcb->open_files[oldfd];
+            pcb->open_files[fd]        = (void*)node;
             pcb->open_file_offsets[fd] = pcb->open_file_offsets[oldfd];
+            syscall_pipe_retain_if_needed(node);
             return (int)fd;
         }
     }
@@ -593,8 +606,13 @@ int sys_dup2(unsigned int oldfd, unsigned int newfd,
     if (oldfd >= MAX_OPEN_FILES || !pcb->open_files[oldfd]) return -1;
     if (newfd >= MAX_OPEN_FILES) return -1;
     if (oldfd == newfd) return (int)newfd;
-    pcb->open_files[newfd]        = pcb->open_files[oldfd];
+    if (pcb->open_files[newfd]) {
+        sys_close(newfd, 0, 0, 0);
+    }
+    vfs_node_t* node = (vfs_node_t*)pcb->open_files[oldfd];
+    pcb->open_files[newfd]        = (void*)node;
     pcb->open_file_offsets[newfd] = pcb->open_file_offsets[oldfd];
+    syscall_pipe_retain_if_needed(node);
     return (int)newfd;
 }
 
